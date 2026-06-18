@@ -41,15 +41,28 @@ const Quiz = (function () {
         if (q) questions.push(q);
       });
     });
-    return shuffle(questions);
+    const shuffled = shuffle(questions);
+    // add a "match the following" round if the group is big enough
+    if (groupWords.length >= 3) {
+      const match = buildMatch(groupWords);
+      // drop it roughly in the middle so the lesson has variety
+      shuffled.splice(Math.floor(shuffled.length / 2), 0, match);
+    }
+    return shuffled;
   }
 
   /* Choose 1–2 question styles per word depending on what data it has. */
   function pickTypes(w) {
-    const options = ["meaning", "word", "listen", "fill"];
+    const options = ["meaning", "word", "picture", "listen", "fill"];
     if (w.synonyms && w.synonyms.length) options.push("synonym");
     if (w.antonyms && w.antonyms.length) options.push("antonym");
     return shuffle(options).slice(0, 2);
+  }
+
+  /* Match-the-following: pair 4 words with their meanings. */
+  function buildMatch(words) {
+    const items = shuffle(words).slice(0, 4).map(w => ({ word: w.word, emoji: w.emoji, meaning: w.meaning }));
+    return { type: "match", prompt: "Match each word to its meaning", items };
   }
 
   function makeQuestion(type, w, others) {
@@ -89,6 +102,16 @@ const Quiz = (function () {
         const wrong = pick(others, 3, w).map(o => o.word);
         return base(type, w, "Finish the sentence:", blank, shuffle([w.word, ...wrong]), w.word,
           "The full sentence is: “" + w.example + "”");
+      }
+      case "picture": {
+        const wrongs = pick(others, 3, w);
+        const opts = shuffle([w].concat(wrongs));
+        const q = base("picture", w, "Tap the picture for “" + w.word + "”", "", opts.map(o => o.word), w.word,
+          "This one is “" + w.word + "” " + w.emoji);
+        q.optionStyle = "picture";
+        q.optionMeta = {};
+        opts.forEach(o => { q.optionMeta[o.word] = o.emoji; });
+        return q;
       }
     }
   }

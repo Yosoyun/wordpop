@@ -14,7 +14,7 @@ const Store = (function () {
     pin: CONFIG.parentPinDefault,
     premium: false,                 // unlocks letters C–Z
     theme: null,                    // "sparkle" | "hero" (null = not chosen yet)
-    settings: { voice: true, sfx: true, voiceName: null, rate: 0.86 },
+    settings: { voice: true, sfx: true, voiceName: null, rate: 0.86, music: false },
     xp: 0,
     gems: 0,
     streak: { count: 0, lastDay: null },

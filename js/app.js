@@ -23,39 +23,11 @@ const App = (function () {
   }
   function startTimer() { sessionStart = Date.now(); }
 
-  /* ---------- mascot (Pip) ---------- */
+  /* ---------- mascot (themed: Stella for Sparkle, Zap for Hero) ---------- */
   function mascot(mood = "happy", size = 96) {
-    // moods: happy, celebrate, think, oops
-    const eye = mood === "oops" ? `<circle cx="0" cy="0" r="5"/>` : `<circle cx="0" cy="0" r="6"/>`;
-    const mouth = {
-      happy: `<path d="M -14 8 Q 0 22 14 8" fill="none" stroke="#3B2E5A" stroke-width="4" stroke-linecap="round"/>`,
-      celebrate: `<path d="M -16 4 Q 0 28 16 4 Z" fill="#3B2E5A"/><path d="M -10 12 Q 0 18 10 12" fill="#FF6B9D"/>`,
-      think: `<path d="M -10 12 Q 0 6 12 12" fill="none" stroke="#3B2E5A" stroke-width="4" stroke-linecap="round"/>`,
-      oops: `<ellipse cx="0" cy="12" rx="7" ry="9" fill="#3B2E5A"/>`
-    }[mood] || `<path d="M -14 8 Q 0 22 14 8" fill="none" stroke="#3B2E5A" stroke-width="4" stroke-linecap="round"/>`;
-    return `
-    <svg class="mascot mascot-${mood}" width="${size}" height="${size}" viewBox="-60 -70 120 130" aria-hidden="true">
-      <ellipse cx="0" cy="52" rx="34" ry="8" fill="rgba(59,46,90,.12)"/>
-      <path d="M 4 -42 q 10 -22 26 -18 q -2 16 -22 22 Z" fill="#6BCB77"/>
-      <path d="M 4 -42 q 6 -14 16 -12" fill="none" stroke="#4ea85a" stroke-width="2"/>
-      <circle cx="0" cy="0" r="44" fill="#FF9F45"/>
-      <circle cx="0" cy="0" r="44" fill="url(#pipGrad)"/>
-      <circle cx="-24" cy="14" r="9" fill="#FF6B6B" opacity=".5"/>
-      <circle cx="24" cy="14" r="9" fill="#FF6B6B" opacity=".5"/>
-      <g transform="translate(-16,-6)">${eye}</g>
-      <g transform="translate(16,-6)">${eye}</g>
-      <circle cx="-14" cy="-9" r="2" fill="#fff"/>
-      <circle cx="18" cy="-9" r="2" fill="#fff"/>
-      ${mouth}
-      ${(mood !== "oops" && typeof Themes !== "undefined") ? Themes.mascotAccessory(Themes.current()) : ""}
-      <defs>
-        <radialGradient id="pipGrad" cx="35%" cy="30%" r="75%">
-          <stop offset="0%" stop-color="#FFC93C"/>
-          <stop offset="100%" stop-color="#FF7A5C"/>
-        </radialGradient>
-      </defs>
-    </svg>`;
+    return Themes.mascotSVG(Themes.current(), mood, size);
   }
+  function mascotName() { return Themes.meta(Themes.current()).mascot || CONFIG.mascotName; }
 
   /* ---------- top HUD ---------- */
   function hud() {
@@ -92,7 +64,7 @@ const App = (function () {
         ${mascot("happy", 130)}
         <h1 class="logo">${esc(CONFIG.appName)}</h1>
         <p class="tagline">${esc(CONFIG.tagline)}</p>
-        <p class="onboard-hi">Hi! I'm ${esc(CONFIG.mascotName)}. What's your name?</p>
+        <p class="onboard-hi">Hi! I'm ${esc(mascotName())}. What's your name?</p>
         <input id="nameInput" class="big-input" placeholder="Type your name" maxlength="20" autocomplete="off"/>
         <button class="btn btn-primary btn-big" data-action="start-learning">Let's go! ✨</button>
         <button class="btn btn-ghost" data-go="parent">I'm a parent</button>
@@ -296,38 +268,114 @@ const App = (function () {
     }
   }
 
+  function lessonTopBar(total) {
+    return `<div class="lesson-top">
+        <button class="btn-back" data-action="quit-lesson">✕</button>
+        <div class="progress-bar"><span style="width:${(session.qIndex / total) * 100}%"></span></div>
+        <span class="lesson-counter">${session.qIndex + 1}/${total}</span>
+      </div>`;
+  }
+
   function renderQuestion() {
     const q = session.questions[session.qIndex];
     if (!q) return finishLesson();
     const total = session.questions.length;
-    let stemHtml;
+    if (q.type === "match") return renderMatch(q, total);
+
+    let stemHtml = "";
     if (q.stem === "__LISTEN__") {
       stemHtml = `<button class="big-speaker" data-action="speak" data-text="${esc(q.word)}">🔊<span>tap to hear</span></button>`;
     } else {
-      const art = Art.has(q.word) ? `<div class="q-art">${Art.svg(q.word)}</div>` : "";
+      const art = Art.has(q.word) && q.optionStyle !== "picture" ? `<div class="q-art">${Art.svg(q.word)}</div>` : "";
       let stemText = q.stem;
       if (art && q.emoji && stemText.indexOf(q.emoji) === 0) stemText = stemText.slice(q.emoji.length).trim();
-      stemHtml = `${art}<div class="q-stem">${esc(stemText)}</div>`;
+      stemHtml = art + (stemText ? `<div class="q-stem">${esc(stemText)}</div>` : "");
     }
-    const opts = q.options.map(o =>
-      `<button class="opt" data-opt="${esc(o)}">${esc(cap(o))}</button>`
-    ).join("");
+
+    let optsHtml, optsClass = "opts";
+    if (q.optionStyle === "picture") {
+      optsClass = "opts opts-pic";
+      optsHtml = q.options.map(o => {
+        const vis = Art.has(o) ? `<span class="opt-art">${Art.svg(o)}</span>` : `<span class="opt-emoji">${(q.optionMeta && q.optionMeta[o]) || "❓"}</span>`;
+        return `<button class="opt opt-pic" data-opt="${esc(o)}">${vis}<span class="opt-label">${esc(cap(o))}</span></button>`;
+      }).join("");
+    } else {
+      optsHtml = q.options.map(o => `<button class="opt" data-opt="${esc(o)}">${esc(cap(o))}</button>`).join("");
+    }
+
     render(`
     <div class="screen quiz" style="--c:${session.color}">
-      <div class="lesson-top">
-        <button class="btn-back" data-action="quit-lesson">✕</button>
-        <div class="progress-bar"><span style="width:${(session.qIndex / total) * 100}%"></span></div>
-        <span class="lesson-counter">${session.qIndex + 1}/${total}</span>
-      </div>
+      ${lessonTopBar(total)}
       <div class="q-body pop-in">
         <div class="q-mascot">${mascot("think", 64)}</div>
         <h2 class="q-prompt">${esc(q.prompt)}</h2>
         ${stemHtml}
-        <div class="opts">${opts}</div>
+        <div class="${optsClass}">${optsHtml}</div>
       </div>
       <div class="feedback-bar" id="fb"></div>
     </div>`);
     if (q.speakOnLoad) setTimeout(() => Audio.speak(q.word), 300);
+  }
+
+  /* ---- match-the-following ---- */
+  function renderMatch(q, total) {
+    session._match = { items: q.items, selectedLeft: null, remaining: q.items.length };
+    const lefts = q.items.map((it, i) =>
+      `<button class="match-item match-left" data-mleft="${i}">
+        ${Art.has(it.word) ? `<span class="mi-art">${Art.svg(it.word)}</span>` : `<span class="mi-emoji">${it.emoji}</span>`}
+        <span class="mi-word">${esc(it.word)}</span>
+      </button>`).join("");
+    const order = Quiz.shuffle(q.items.map((_, i) => i));
+    const rights = order.map(i =>
+      `<button class="match-item match-right" data-mright="${i}">${esc(q.items[i].meaning)}</button>`).join("");
+    render(`
+    <div class="screen quiz match-screen" style="--c:${session.color}">
+      ${lessonTopBar(total)}
+      <div class="q-body pop-in">
+        <h2 class="q-prompt">🔗 ${esc(q.prompt)}</h2>
+        <div class="match-grid">
+          <div class="match-col">${lefts}</div>
+          <div class="match-col">${rights}</div>
+        </div>
+      </div>
+      <div class="feedback-bar" id="fb"></div>
+    </div>`);
+  }
+
+  function matchTap(side, idx, btn) {
+    const m = session._match;
+    if (!m || btn.classList.contains("matched")) return;
+    if (side === "left") {
+      $$(".match-left").forEach(b => b.classList.remove("sel"));
+      btn.classList.add("sel");
+      m.selectedLeft = idx;
+      Audio.tap();
+      return;
+    }
+    // right tapped
+    if (m.selectedLeft === null) { btn.classList.add("nudge"); setTimeout(() => btn.classList.remove("nudge"), 400); return; }
+    const word = m.items[m.selectedLeft].word;
+    const leftBtn = $(`.match-left[data-mleft="${m.selectedLeft}"]`);
+    if (idx === m.selectedLeft) {
+      // correct pair
+      [leftBtn, btn].forEach(b => { b.classList.add("matched"); b.classList.remove("sel"); });
+      Audio.correct();
+      Store.recordWord(word, true); Store.addXp(5);
+      m.selectedLeft = null; m.remaining--;
+      if (m.remaining === 0) {
+        Store.addGems(2); burstConfetti(20);
+        showFeedback(true, { why: "You matched every word — brilliant!" }, () => { session.qIndex++; renderQuestion(); });
+      }
+    } else {
+      // wrong pair
+      [leftBtn, btn].forEach(b => { b.classList.add("nudge"); setTimeout(() => b.classList.remove("nudge"), 450); });
+      btn.classList.remove("sel"); if (leftBtn) leftBtn.classList.remove("sel");
+      Audio.wrong();
+      session.wrongCount++;
+      Store.recordWord(word, false);
+      Store.logError({ letter: session.letter, word: word, type: "match", prompt: "Match to meaning", chosen: m.items[idx].word, correct: word });
+      m.selectedLeft = null;
+    }
   }
 
   function answer(choice, btn) {
@@ -536,6 +584,7 @@ const App = (function () {
         <h3>⚙️ Settings</h3>
         <label class="toggle"><span>🔊 Word audio on</span><input type="checkbox" data-setting="voice" ${s.settings.voice ? "checked" : ""}></label>
         <label class="toggle"><span>🎵 Sound effects</span><input type="checkbox" data-setting="sfx" ${s.settings.sfx ? "checked" : ""}></label>
+        <label class="toggle"><span>🎶 Background music</span><input type="checkbox" data-setting="music" ${s.settings.music ? "checked" : ""}></label>
         <label class="toggle"><span>⭐ Premium (unlock all letters — demo)</span><input type="checkbox" data-setting="premium" ${s.premium ? "checked" : ""}></label>
         <div class="setting-row">
           <button class="btn btn-soft" data-action="change-name">✏️ Set child's name</button>
@@ -556,12 +605,16 @@ const App = (function () {
     const r = root();
 
     r.onclick = (e) => {
-      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick]");
+      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick],[data-mleft],[data-mright]");
       if (!t) return;
 
+      if (t.dataset.mleft !== undefined) return matchTap("left", +t.dataset.mleft, t);
+      if (t.dataset.mright !== undefined) return matchTap("right", +t.dataset.mright, t);
+
       if (t.dataset.themePick) {
-        Store.setTheme(t.dataset.themePick);
-        Themes.apply(t.dataset.themePick);
+        const k = t.dataset.themePick;
+        Store.setTheme(k); Themes.apply(k); Audio.setTheme(k);
+        if (Store.get().settings.music) { Audio.stopMusic(); Audio.startMusic(); }
         Audio.sparkle();
         return screenHome();
       }
@@ -591,7 +644,7 @@ const App = (function () {
       inp.onchange = () => {
         const k = inp.dataset.setting;
         if (k === "premium") Store.setPremium(inp.checked);
-        else { Store.setSetting(k, inp.checked); if (k === "voice") Audio.setVoice(inp.checked); if (k === "sfx") Audio.setSfx(inp.checked); }
+        else { Store.setSetting(k, inp.checked); if (k === "voice") Audio.setVoice(inp.checked); if (k === "sfx") Audio.setSfx(inp.checked); if (k === "music") { inp.checked ? Audio.startMusic() : Audio.stopMusic(); } }
       };
     });
 
@@ -624,7 +677,7 @@ const App = (function () {
         else { $("#gateErr").textContent = "Oops, wrong PIN. Try again."; Audio.wrong(); }
         break;
       }
-      case "set-world": { Store.setTheme(t.dataset.world); Themes.apply(t.dataset.world); Audio.sparkle(); screenParent(); break; }
+      case "set-world": { const k = t.dataset.world; Store.setTheme(k); Themes.apply(k); Audio.setTheme(k); if (Store.get().settings.music) { Audio.stopMusic(); Audio.startMusic(); } Audio.sparkle(); screenParent(); break; }
       case "test-voice": Audio.say("Hi! I am Pip. Let's learn beautiful words together!"); break;
       case "change-name": { const n = prompt("Child's name:", Store.get().learnerName || ""); if (n !== null) { Store.setName(n.trim()); screenParent(); } break; }
       case "change-pin": { const n = prompt("New 4-digit PIN:", ""); if (n && /^\d{4}$/.test(n)) { Store.setPin(n); alert("PIN updated."); } else if (n !== null) alert("PIN must be 4 digits."); break; }
@@ -735,10 +788,12 @@ const App = (function () {
     // apply saved theme + sound settings
     const s = Store.get();
     Themes.apply(s.theme || "sparkle");
+    Audio.setTheme(s.theme || "sparkle");
     Audio.setVoice(s.settings.voice);
     Audio.setSfx(s.settings.sfx);
     if (s.settings.voiceName) Audio.setVoiceByName(s.settings.voiceName);
     if (s.settings.rate) Audio.setRate(s.settings.rate);
+    if (s.settings.music) Audio.startMusic();
     // warm up speech voices
     if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
     route("home");

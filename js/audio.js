@@ -15,6 +15,8 @@ const Audio = (function () {
   let pitch = 1.12;           // friendly, slightly higher
   let preferredVoice = null;
   let chosenName = null;      // parent-selected voice name (overrides auto)
+  let theme = "sparkle";      // changes the flavour of the sound effects
+  let musicTimer = null, musicOn = false;
 
   function allVoices() {
     if (!("speechSynthesis" in window)) return [];
@@ -89,16 +91,44 @@ const Audio = (function () {
     osc.start(t); osc.stop(t + dur + 0.02);
   }
 
-  function correct() { if (!sfxOn) return; tone(523.25, 0, .18, "triangle"); tone(659.25, .09, .18, "triangle"); tone(783.99, .18, .26, "triangle"); }
+  function correct() {
+    if (!sfxOn) return;
+    if (theme === "hero") { tone(392, 0, .16, "triangle", .18); tone(523.25, .08, .16, "triangle", .18); tone(659.25, .16, .3, "triangle", .2); }
+    else { tone(659.25, 0, .14, "sine", .16); tone(880, .08, .14, "sine", .16); tone(1174.66, .16, .22, "sine", .13); tone(1567.98, .24, .2, "sine", .08); }
+  }
   function wrong()   { if (!sfxOn) return; tone(311.13, 0, .18, "sine", .14); tone(246.94, .12, .26, "sine", .14); }
-  function pop()     { if (!sfxOn) return; tone(880, 0, .07, "sine", .12); tone(1320, .04, .06, "sine", .08); }
-  function fanfare() { if (!sfxOn) return; [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, i * .12, .3, "triangle", .16)); }
-  function tap()     { if (!sfxOn) return; tone(660, 0, .05, "sine", .08); }
+  function pop() {
+    if (!sfxOn) return;
+    if (theme === "hero") { tone(523, 0, .07, "square", .08); tone(784, .04, .07, "square", .06); }
+    else { tone(988, 0, .06, "sine", .1); tone(1480, .04, .06, "sine", .07); }
+  }
+  function fanfare() {
+    if (!sfxOn) return;
+    const notes = theme === "hero" ? [392, 523.25, 659.25, 783.99, 1046.5] : [523.25, 659.25, 783.99, 1046.5, 1318.5];
+    notes.forEach((f, i) => tone(f, i * .12, .32, theme === "hero" ? "triangle" : "sine", .16));
+  }
+  function tap()     { if (!sfxOn) return; tone(theme === "hero" ? 520 : 720, 0, .05, "sine", .08); }
   function sparkle() { if (!sfxOn) return; [1318, 1568, 2093].forEach((f, i) => tone(f, i * .05, .12, "sine", .06)); }
+
+  /* gentle optional background music (soft random arpeggio per theme) */
+  const SCALES = { sparkle: [523.25, 587.33, 659.25, 783.99, 880, 1046.5], hero: [392, 440, 523.25, 587.33, 659.25, 783.99] };
+  function playPad() {
+    const c = ensureCtx(); if (!c) return;
+    const scale = SCALES[theme] || SCALES.sparkle;
+    const n = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+      const f = scale[Math.floor(Math.random() * scale.length)];
+      tone(f, i * 0.3, 0.8, theme === "hero" ? "triangle" : "sine", 0.04);
+    }
+  }
+  function startMusic() { if (musicOn) return; musicOn = true; ensureCtx(); playPad(); musicTimer = setInterval(playPad, 2600); }
+  function stopMusic() { musicOn = false; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
 
   return {
     speak, say,
     correct, wrong, pop, fanfare, tap, sparkle,
+    setTheme: (t) => { theme = t; },
+    startMusic, stopMusic, isMusicOn: () => musicOn,
     listVoices: () => allVoices().map(v => ({ name: v.name, lang: v.lang })),
     setVoiceByName: (name) => { chosenName = name || null; chooseVoice(); },
     getVoiceName: () => preferredVoice ? preferredVoice.name : "",

@@ -89,6 +89,66 @@ const Art = (function () {
       <path d="M92 70 l2.5 6 6 .8 -4.5 4 1 6 -5 -3 -5 3 1 -6 -4.5 -4 6 -.8Z" fill="#2EC4B6"/>
       <circle cx="40" cy="84" r="4" fill="#4D96FF"/>
       <circle cx="86" cy="40" r="3" fill="#8A4FFF"/>
+    </svg>`,
+
+    ball: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#DDF3F0')}
+      <circle cx="60" cy="62" r="33" fill="#fff" stroke="#2EC4B6" stroke-width="3"/>
+      <path d="M60 45 l12 9 -5 14 -14 0 -5 -14Z" fill="#3B2E5A"/>
+      <path d="M44 78 l-7 -4 3 -8" fill="none" stroke="#3B2E5A" stroke-width="3" stroke-linecap="round"/>
+      <path d="M76 78 l7 -4 -3 -8" fill="none" stroke="#3B2E5A" stroke-width="3" stroke-linecap="round"/>
+      <path d="M72 38 l8 5 -2 7" fill="none" stroke="#3B2E5A" stroke-width="3" stroke-linecap="round"/>
+      <path d="M48 38 l-8 5 2 7" fill="none" stroke="#3B2E5A" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+
+    cat: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFE6DD')}
+      <path d="M36 42 L46 66 L28 60Z" fill="#FF9F45"/>
+      <path d="M84 42 L74 66 L92 60Z" fill="#FF9F45"/>
+      <circle cx="60" cy="66" r="30" fill="#FF9F45"/>
+      <ellipse cx="50" cy="64" rx="4.5" ry="6.5" fill="#3B2E5A"/>
+      <ellipse cx="70" cy="64" rx="4.5" ry="6.5" fill="#3B2E5A"/>
+      <path d="M56 76 L64 76 L60 81Z" fill="#FF6B9D"/>
+      <path d="M60 81 Q60 87 53 87 M60 81 Q60 87 67 87" fill="none" stroke="#3B2E5A" stroke-width="2.5"/>
+      <g stroke="#3B2E5A" stroke-width="2"><line x1="30" y1="74" x2="46" y2="76"/><line x1="30" y1="80" x2="46" y2="80"/><line x1="90" y1="74" x2="74" y2="76"/><line x1="90" y1="80" x2="74" y2="80"/></g>
+    </svg>`,
+
+    dog: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#DDEBFF')}
+      <ellipse cx="33" cy="54" rx="11" ry="19" fill="#A6754C"/>
+      <ellipse cx="87" cy="54" rx="11" ry="19" fill="#A6754C"/>
+      <circle cx="60" cy="64" r="30" fill="#C68A5E"/>
+      <circle cx="50" cy="60" r="4" fill="#3B2E5A"/>
+      <circle cx="70" cy="60" r="4" fill="#3B2E5A"/>
+      <ellipse cx="60" cy="74" rx="7" ry="5" fill="#3B2E5A"/>
+      <path d="M60 79 Q60 87 51 84 M60 79 Q60 87 69 84" fill="none" stroke="#3B2E5A" stroke-width="2.5"/>
+      <path d="M57 88 q3 4 6 0" fill="#FF6B9D"/>
+    </svg>`,
+
+    egg: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFF3D6')}
+      <path d="M60 32 C43 32 37 60 37 75 C37 91 47 100 60 100 C73 100 83 91 83 75 C83 60 77 32 60 32Z" fill="#fff" stroke="#F0D9A0" stroke-width="2"/>
+      <ellipse cx="52" cy="62" rx="7" ry="12" fill="#FFF6E9"/>
+    </svg>`,
+
+    fish: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#DDF3F0')}
+      <path d="M28 62 Q50 40 78 50 Q92 56 92 62 Q92 68 78 74 Q50 84 28 62Z" fill="#FF9F45"/>
+      <path d="M92 62 L107 51 L105 73Z" fill="#FF7A5C"/>
+      <path d="M64 50 Q70 62 64 74" fill="none" stroke="#fff" stroke-width="2.5" opacity=".55"/>
+      <circle cx="44" cy="58" r="4.5" fill="#fff"/><circle cx="44" cy="58" r="2.2" fill="#3B2E5A"/>
+      <circle cx="84" cy="46" r="2.5" fill="#fff" opacity=".7"/>
+    </svg>`,
+
+    frog: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#E3F7E9')}
+      <ellipse cx="60" cy="72" rx="32" ry="26" fill="#6BCB77"/>
+      <circle cx="44" cy="48" r="12" fill="#6BCB77"/>
+      <circle cx="76" cy="48" r="12" fill="#6BCB77"/>
+      <circle cx="44" cy="47" r="6" fill="#fff"/><circle cx="44" cy="48" r="3" fill="#3B2E5A"/>
+      <circle cx="76" cy="47" r="6" fill="#fff"/><circle cx="76" cy="48" r="3" fill="#3B2E5A"/>
+      <path d="M44 78 Q60 90 76 78" fill="none" stroke="#3B7a47" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="49" cy="76" r="3" fill="#FF6B9D" opacity=".5"/><circle cx="71" cy="76" r="3" fill="#FF6B9D" opacity=".5"/>
     </svg>`
   };
 

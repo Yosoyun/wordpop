@@ -211,12 +211,12 @@ const LETTER_A = [
    To build the next letter, replace its empty `words: []` with 25 word objects
    exactly like Letter A above, and set status to "ready". */
 const LETTERS = [
-  { letter: "A", theme: "Awesome Adjectives & Friends", color: "#FF7A5C", status: "ready",       words: LETTER_A },
-  { letter: "B", theme: "Brilliant Beginnings",          color: "#2EC4B6", status: "coming-soon", words: [] },
-  { letter: "C", theme: "Curious Words",                 color: "#FFC93C", status: "premium",     words: [] },
-  { letter: "D", theme: "Delightful Words",              color: "#8A4FFF", status: "premium",     words: [] },
-  { letter: "E", theme: "Exciting Words",                color: "#4D96FF", status: "premium",     words: [] },
-  { letter: "F", theme: "Fantastic Words",               color: "#FF6B9D", status: "premium",     words: [] },
+  { letter: "A", theme: "Awesome Adjectives & Friends", color: "#FF7A5C", status: "ready",   words: LETTER_A },
+  { letter: "B", theme: "Brilliant Beginnings",          color: "#2EC4B6", status: "ready",   words: LETTER_B },
+  { letter: "C", theme: "Curious Words",                 color: "#FFC93C", status: "premium", words: LETTER_C },
+  { letter: "D", theme: "Delightful Words",              color: "#8A4FFF", status: "premium", words: LETTER_D },
+  { letter: "E", theme: "Exciting Words",                color: "#4D96FF", status: "premium", words: LETTER_E },
+  { letter: "F", theme: "Fantastic Words",               color: "#FF6B9D", status: "premium", words: LETTER_F },
   { letter: "G", theme: "Glorious Words",                color: "#6BCB77", status: "premium",     words: [] },
   { letter: "H", theme: "Happy Words",                   color: "#FF9F45", status: "premium",     words: [] },
   { letter: "I", theme: "Incredible Words",              color: "#00C2CB", status: "premium",     words: [] },

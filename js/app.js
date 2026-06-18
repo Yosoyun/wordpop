@@ -247,7 +247,7 @@ const App = (function () {
         <span class="lesson-counter">${session.flashIndex + 1}/${n}</span>
       </div>
       <div class="flash-stage pop-in" key="${session.flashIndex}">
-        <div class="flash-emoji">${w.emoji}</div>
+        ${Art.has(w.word) ? `<div class="flash-art">${Art.svg(w.word)}</div>` : `<div class="flash-emoji">${w.emoji}</div>`}
         <div class="flash-wordline">
           <h1 class="flash-word">${esc(w.word)}</h1>
           <button class="speak-btn" data-action="speak" data-text="${esc(w.word)}" title="Hear it">🔊</button>
@@ -287,9 +287,15 @@ const App = (function () {
     const q = session.questions[session.qIndex];
     if (!q) return finishLesson();
     const total = session.questions.length;
-    const stemHtml = q.stem === "__LISTEN__"
-      ? `<button class="big-speaker" data-action="speak" data-text="${esc(q.word)}">🔊<span>tap to hear</span></button>`
-      : `<div class="q-stem">${esc(q.stem)}</div>`;
+    let stemHtml;
+    if (q.stem === "__LISTEN__") {
+      stemHtml = `<button class="big-speaker" data-action="speak" data-text="${esc(q.word)}">🔊<span>tap to hear</span></button>`;
+    } else {
+      const art = Art.has(q.word) ? `<div class="q-art">${Art.svg(q.word)}</div>` : "";
+      let stemText = q.stem;
+      if (art && q.emoji && stemText.indexOf(q.emoji) === 0) stemText = stemText.slice(q.emoji.length).trim();
+      stemHtml = `${art}<div class="q-stem">${esc(stemText)}</div>`;
+    }
     const opts = q.options.map(o =>
       `<button class="opt" data-opt="${esc(o)}">${esc(cap(o))}</button>`
     ).join("");

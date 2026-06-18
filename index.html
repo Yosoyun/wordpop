@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#FFF6E9" />
+  <meta name="description" content="WordPop — learn beautiful words with pictures, sound and games. A joyful English vocabulary app for kids in grades 1–5." />
+  <title>WordPop — Learn Beautiful Words</title>
+
+  <!-- Emoji favicon (works offline) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫧</text></svg>" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <main id="app"><!-- the whole app renders here --></main>
+
+  <!-- Order matters: data → audio → store → quiz → app -->
+  <script src="js/data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

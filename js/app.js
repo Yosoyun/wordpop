@@ -47,6 +47,7 @@ const App = (function () {
       <circle cx="-14" cy="-9" r="2" fill="#fff"/>
       <circle cx="18" cy="-9" r="2" fill="#fff"/>
       ${mouth}
+      ${(mood !== "oops" && typeof Themes !== "undefined") ? Themes.mascotAccessory(Themes.current()) : ""}
       <defs>
         <radialGradient id="pipGrad" cx="35%" cy="30%" r="75%">
           <stop offset="0%" stop-color="#FFC93C"/>
@@ -105,9 +106,19 @@ const App = (function () {
     flushTime();
     const s = Store.get();
     const greeting = s.learnerName ? `Hi ${esc(s.learnerName)}! ` : "";
-    const nodes = LETTERS.map((L, i) => letterNode(L, i)).join("");
+    // find the "current" letter — first playable one that isn't fully done
+    let currentLetter = null;
+    for (const L of LETTERS) {
+      const playable = (CONFIG.freeLetters.includes(L.letter) || s.premium) && L.words.length > 0;
+      if (!playable) continue;
+      const cl = clustersFor(L);
+      const done = cl.filter((_, ci) => (s.lessons[L.letter + ":" + ci] || {}).completed).length;
+      if (done < cl.length) { currentLetter = L.letter; break; }
+    }
+    const nodes = LETTERS.map((L, i) => letterNode(L, i, currentLetter)).join("");
     render(`
     <div class="screen home">
+      <div class="bubbles-bg">${bubbleField()}</div>
       ${hud()}
       <div class="home-head">
         ${mascot("happy", 72)}
@@ -123,32 +134,34 @@ const App = (function () {
     </div>`);
   }
 
-  function letterNode(L, i) {
+  function letterNode(L, i, currentLetter) {
     const s = Store.get();
+    const hasWords = L.words.length > 0;
     const free = CONFIG.freeLetters.includes(L.letter) || s.premium;
-    const ready = L.status === "ready" && L.words.length > 0;
-    const locked = (!free && L.status === "premium") || (!ready);
-    const side = i % 2 === 0 ? "left" : "right";
-    // count completed lessons for this letter
-    let crown = "";
-    if (ready) {
+    const locked = !hasWords || (!free && L.status === "premium");
+    const offset = Math.round(Math.sin(i * 0.85) * 58);   // gentle zigzag
+    const isCurrent = L.letter === currentLetter;
+    // count completed lessons
+    let crown = "", fullyDone = false;
+    if (hasWords) {
       const total = clustersFor(L).length;
       const done = clustersFor(L).filter((_, ci) => (s.lessons[L.letter + ":" + ci] || {}).completed).length;
-      if (done > 0) crown = `<span class="node-crown">${done >= total ? "👑" : done + "/" + total}</span>`;
+      fullyDone = done >= total;
+      if (done > 0) crown = `<span class="node-crown">${fullyDone ? "👑" : done + "/" + total}</span>`;
     }
     let badge = "";
-    if (L.status === "premium" && !s.premium) badge = `<span class="node-badge premium">⭐</span>`;
-    else if (L.status === "coming-soon") badge = `<span class="node-badge soon">soon</span>`;
+    if (!hasWords) badge = `<span class="node-badge soon">soon</span>`;
+    else if (L.status === "premium" && !s.premium) badge = `<span class="node-badge premium">⭐ premium</span>`;
     return `
-      <div class="node-row ${side}">
-        <button class="node ${locked ? "locked" : "open"}" style="--c:${L.color}"
+      <div class="node-row" style="--off:${offset}px">
+        ${isCurrent ? `<span class="node-flag">START</span>` : ""}
+        <button class="node ${locked ? "locked" : "open"} ${isCurrent ? "current" : ""} ${fullyDone ? "done" : ""}" style="--c:${L.color}"
                 data-letter="${L.letter}" ${locked ? "data-locked='1'" : ""}>
-          <span class="node-letter">${L.letter}</span>
-          ${locked ? `<span class="node-lock">🔒</span>` : ""}
-          ${crown}
-          ${badge}
+          <span class="node-shine"></span>
+          <span class="node-letter">${locked && !hasWords ? L.letter : (locked ? "🔒" : L.letter)}</span>
+          ${crown}${badge}
         </button>
-        <span class="node-theme">${esc(L.theme)}</span>
+        <span class="node-caption">${esc(L.theme)}</span>
       </div>`;
   }
 
@@ -499,9 +512,29 @@ const App = (function () {
         </div>
       </section>
 
+      <section class="panel">
+        <h3>🌈 World <small>(theme for your child)</small></h3>
+        <div class="world-switch">
+          ${Themes.list().map(t => `<button class="world-btn world-${t.key} ${s.theme === t.key ? "active" : ""}" data-action="set-world" data-world="${t.key}">
+            <span>${t.emoji}</span>${esc(t.name)}</button>`).join("")}
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>🔊 Voice <small>(reads words aloud)</small></h3>
+        ${voicePickerHtml(s)}
+        <div class="voice-row">
+          <label class="rate-label">🐢 Speed</label>
+          <input type="range" min="0.6" max="1.1" step="0.02" value="${Audio.getRate()}" data-rate-slider class="rate-slider">
+          <label class="rate-label">🐇</label>
+        </div>
+        <button class="btn btn-soft" data-action="test-voice">▶ Test the voice</button>
+        <p class="muted tiny">Tip: voices come from the device. On phones &amp; tablets they usually sound best. Pick the one you like most.</p>
+      </section>
+
       <section class="panel settings">
         <h3>⚙️ Settings</h3>
-        <label class="toggle"><span>🔊 Word audio</span><input type="checkbox" data-setting="voice" ${s.settings.voice ? "checked" : ""}></label>
+        <label class="toggle"><span>🔊 Word audio on</span><input type="checkbox" data-setting="voice" ${s.settings.voice ? "checked" : ""}></label>
         <label class="toggle"><span>🎵 Sound effects</span><input type="checkbox" data-setting="sfx" ${s.settings.sfx ? "checked" : ""}></label>
         <label class="toggle"><span>⭐ Premium (unlock all letters — demo)</span><input type="checkbox" data-setting="premium" ${s.premium ? "checked" : ""}></label>
         <div class="setting-row">
@@ -523,8 +556,15 @@ const App = (function () {
     const r = root();
 
     r.onclick = (e) => {
-      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate]");
+      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick]");
       if (!t) return;
+
+      if (t.dataset.themePick) {
+        Store.setTheme(t.dataset.themePick);
+        Themes.apply(t.dataset.themePick);
+        Audio.sparkle();
+        return screenHome();
+      }
 
       if (t.dataset.go) { Audio.tap(); return route(t.dataset.go); }
 
@@ -555,6 +595,12 @@ const App = (function () {
       };
     });
 
+    // voice picker + speed
+    const vs = $("[data-voice-select]", r);
+    if (vs) vs.onchange = () => { Store.setSetting("voiceName", vs.value); Audio.setVoiceByName(vs.value); Audio.say("Hello!"); };
+    const rs = $("[data-rate-slider]", r);
+    if (rs) rs.onchange = () => { const v = parseFloat(rs.value); Store.setSetting("rate", v); Audio.setRate(v); Audio.say("Like this"); };
+
     // enter key on name / pin
     const ni = $("#nameInput"); if (ni) ni.onkeydown = (e) => { if (e.key === "Enter") handleAction("start-learning"); };
     const pi = $("#pinInput"); if (pi) pi.onkeydown = (e) => { if (e.key === "Enter") handleAction("check-pin"); };
@@ -578,6 +624,8 @@ const App = (function () {
         else { $("#gateErr").textContent = "Oops, wrong PIN. Try again."; Audio.wrong(); }
         break;
       }
+      case "set-world": { Store.setTheme(t.dataset.world); Themes.apply(t.dataset.world); Audio.sparkle(); screenParent(); break; }
+      case "test-voice": Audio.say("Hi! I am Pip. Let's learn beautiful words together!"); break;
       case "change-name": { const n = prompt("Child's name:", Store.get().learnerName || ""); if (n !== null) { Store.setName(n.trim()); screenParent(); } break; }
       case "change-pin": { const n = prompt("New 4-digit PIN:", ""); if (n && /^\d{4}$/.test(n)) { Store.setPin(n); alert("PIN updated."); } else if (n !== null) alert("PIN must be 4 digits."); break; }
       case "reset": { if (confirm("Erase ALL progress on this device? This cannot be undone.")) { Store.reset(); parentUnlocked = false; screenOnboard(); } break; }
@@ -592,15 +640,50 @@ const App = (function () {
   }
 
   function route(name) {
-    if (name === "home") return Store.get().learnerName ? screenHome() : screenOnboard();
+    if (name === "home") {
+      const s = Store.get();
+      if (!s.learnerName) return screenOnboard();
+      if (!s.theme) return screenThemePicker();
+      return screenHome();
+    }
     if (name === "parent") return screenParentGate();
     screenHome();
+  }
+
+  /* ---- choose your world (theme picker) ---- */
+  function screenThemePicker(fromSettings) {
+    flushTime();
+    const cards = Themes.list().map(t => `
+      <button class="world-card world-${t.key}" data-theme-pick="${t.key}">
+        <span class="world-emoji">${t.emoji}</span>
+        <span class="world-name">${esc(t.name)}</span>
+        <span class="world-blurb">${esc(t.blurb)}</span>
+        <span class="world-go">Choose ${t.emoji}</span>
+      </button>`).join("");
+    render(`
+    <div class="screen world-pick">
+      <div class="bubbles-bg">${bubbleField()}</div>
+      <div class="world-head pop-in">
+        ${mascot("happy", 96)}
+        <h1 class="logo">Pick your world!</h1>
+        <p class="tagline">Tap the one you love — you can switch any time.</p>
+      </div>
+      <div class="world-grid">${cards}</div>
+      ${fromSettings ? `<button class="btn btn-ghost" data-go="parent">← Back</button>` : ""}
+    </div>`);
   }
 
   /* ---------- bits & pieces ---------- */
   function cap(s) { return String(s).charAt(0).toUpperCase() + String(s).slice(1); }
   function norm(s) { return String(s).trim().toLowerCase(); }
   function typeLabel(t) { return { meaning: "Meaning", word: "Find word", synonym: "Same word", antonym: "Opposite", listen: "Listen", fill: "Fill blank" }[t] || t; }
+  function voicePickerHtml(s) {
+    const voices = Audio.listVoices();
+    if (!voices.length) return `<p class="muted">Loading voices… if this stays empty, reopen this screen.</p>`;
+    const cur = s.settings.voiceName || Audio.getVoiceName();
+    const opts = voices.map(v => `<option value="${esc(v.name)}" ${v.name === cur ? "selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("");
+    return `<select class="voice-select" data-voice-select>${opts}</select>`;
+  }
   function timeAgo(ts) {
     const s = Math.round((Date.now() - ts) / 1000);
     if (s < 60) return "just now";
@@ -609,13 +692,8 @@ const App = (function () {
     return Math.floor(s / 86400) + "d ago";
   }
   function bubbleField() {
-    let out = "";
-    const cols = ["#FF7A5C", "#2EC4B6", "#FFC93C", "#8A4FFF", "#FF6B9D", "#4D96FF"];
-    for (let i = 0; i < 14; i++) {
-      const size = 20 + Math.random() * 70, left = Math.random() * 100, delay = Math.random() * 6, dur = 8 + Math.random() * 8;
-      out += `<span class="bubble" style="--s:${size}px;left:${left}%;background:${cols[i % cols.length]};animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
-    }
-    return out;
+    // themed floating decorations (hearts/sparkles or stars/bolts)
+    return (typeof Themes !== "undefined") ? Themes.floatField(Themes.current(), 16) : "";
   }
   function toast(msg) {
     let t = document.getElementById("toast");
@@ -630,7 +708,7 @@ const App = (function () {
     if (!c) { c = document.createElement("canvas"); c.id = "confetti"; document.body.appendChild(c); }
     c.width = innerWidth; c.height = innerHeight;
     const ctx = c.getContext("2d");
-    const cols = ["#FF7A5C", "#2EC4B6", "#FFC93C", "#8A4FFF", "#FF6B9D", "#6BCB77"];
+    const cols = (typeof Themes !== "undefined") ? Themes.confettiColors(Themes.current()) : ["#FF7A5C", "#2EC4B6", "#FFC93C", "#8A4FFF", "#FF6B9D", "#6BCB77"];
     const parts = [];
     for (let i = 0; i < count; i++) parts.push({
       x: innerWidth / 2 + (Math.random() - .5) * 200, y: innerHeight / 3,
@@ -654,10 +732,13 @@ const App = (function () {
 
   /* ---------- boot ---------- */
   function init() {
-    // apply saved sound settings
+    // apply saved theme + sound settings
     const s = Store.get();
+    Themes.apply(s.theme || "sparkle");
     Audio.setVoice(s.settings.voice);
     Audio.setSfx(s.settings.sfx);
+    if (s.settings.voiceName) Audio.setVoiceByName(s.settings.voiceName);
+    if (s.settings.rate) Audio.setRate(s.settings.rate);
     // warm up speech voices
     if ("speechSynthesis" in window) window.speechSynthesis.getVoices();
     route("home");

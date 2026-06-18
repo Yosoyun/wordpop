@@ -13,7 +13,8 @@ const Store = (function () {
     createdAt: Date.now(),
     pin: CONFIG.parentPinDefault,
     premium: false,                 // unlocks letters C–Z
-    settings: { voice: true, sfx: true },
+    theme: null,                    // "sparkle" | "hero" (null = not chosen yet)
+    settings: { voice: true, sfx: true, voiceName: null, rate: 0.86 },
     xp: 0,
     gems: 0,
     streak: { count: 0, lastDay: null },
@@ -131,6 +132,7 @@ const Store = (function () {
   function setName(n) { state.learnerName = n; save(); }
   function setPin(p) { state.pin = p; save(); }
   function setPremium(v) { state.premium = !!v; save(); }
+  function setTheme(t) { state.theme = t; save(); }
   function setSetting(k, v) { state.settings[k] = v; save(); }
   function reset() { state = fresh(); save(); }
 
@@ -138,6 +140,6 @@ const Store = (function () {
     get, save, touchDay, addSeconds, addXp, addGems,
     recordWord, logError, completeLesson, addFeedback,
     stats, level, xpIntoLevel,
-    setName, setPin, setPremium, setSetting, reset, todayKey
+    setName, setPin, setPremium, setTheme, setSetting, reset, todayKey
   };
 })();

@@ -309,6 +309,59 @@ body {
 .match-item.matched { border-color: var(--ok); background: #E3F7E9; color: var(--ok-deep); pointer-events: none; opacity: .92; }
 .match-item.nudge { animation: shake .4s; }
 
+/* spelling game */
+.spell-emoji { font-size: 4.6rem; line-height: 1; animation: bob 3.2s ease-in-out infinite; }
+.spell-screen .q-art svg, .say-screen .q-art svg { width: 120px; height: 120px; }
+.speak-btn.wide { width: auto; height: auto; padding: 10px 18px; border-radius: 14px; font-family: var(--display); font-weight: 700; font-size: 1rem; display: inline-flex; align-items: center; gap: 6px; margin: 10px 0; }
+.spell-slots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 18px 0; }
+.spell-slot { width: 40px; height: 52px; border-bottom: 4px solid var(--ink-soft); display: flex; align-items: center; justify-content: center; font-family: var(--title); font-weight: 800; font-size: 1.7rem; color: var(--ink); transition: border-color .15s; }
+.spell-slot.filled { border-bottom-color: var(--c); animation: pop-small .25s; }
+.spell-slot.right { color: var(--ok-deep); border-bottom-color: var(--ok); }
+.spell-slot.shake-slot { animation: shake .4s; color: var(--bad); }
+.spell-tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 16px; }
+.spell-tile { width: 50px; height: 54px; border: none; border-radius: 14px; background: #fff; box-shadow: 0 5px 0 rgba(0,0,0,.14); font-family: var(--title); font-weight: 800; font-size: 1.5rem; color: var(--ink); cursor: pointer; transition: transform .08s, opacity .15s; animation: pop-in .3s backwards; }
+.spell-tile:nth-child(2n) { animation-delay: .05s; }
+.spell-tile:nth-child(3n) { animation-delay: .1s; }
+.spell-tile:active { transform: translateY(3px); }
+.spell-tile.used { opacity: .25; pointer-events: none; transform: scale(.88); }
+.spell-clear { width: auto; padding: 10px 22px; }
+
+/* pronunciation (say it) */
+.say-word { font-family: var(--title); font-size: 2.4rem; color: var(--c); margin: 12px 0; }
+.say-status { min-height: 28px; font-weight: 800; margin: 8px 0; color: var(--ink-soft); }
+.say-status.listening { color: var(--c); animation: pulse-text 1s ease-in-out infinite; }
+.say-status.ok { color: var(--ok-deep); }
+.say-status.no { color: var(--warn); }
+.mic-btn { max-width: 340px; margin: 6px auto; animation: mic-glow 1.8s ease-in-out infinite; }
+.speak-btn.mic { background: #fff; box-shadow: var(--shadow-soft); }
+
+/* voice gender quick-pick */
+.voice-gender { display: flex; gap: 10px; margin-bottom: 12px; }
+.gbtn { flex: 1; border: 3px solid #EFE6F6; background: #fff; border-radius: 14px; padding: 12px; font-family: var(--display); font-weight: 700; color: var(--ink); cursor: pointer; transition: border-color .12s, background .12s; }
+.gbtn.active { border-color: var(--coral); background: #FFF3F9; }
+
+/* ===== extra motion everywhere ===== */
+.opts .opt { animation: pop-in .34s backwards; }
+.opts .opt:nth-child(1) { animation-delay: .04s; }
+.opts .opt:nth-child(2) { animation-delay: .10s; }
+.opts .opt:nth-child(3) { animation-delay: .16s; }
+.opts .opt:nth-child(4) { animation-delay: .22s; }
+.match-col .match-item { animation: pop-in .34s backwards; }
+.match-col .match-item:nth-child(2) { animation-delay: .07s; }
+.match-col .match-item:nth-child(3) { animation-delay: .14s; }
+.match-col .match-item:nth-child(4) { animation-delay: .21s; }
+.q-prompt { animation: drop-in .4s backwards; }
+.lesson-card { animation: slide-in .4s backwards; }
+.lesson-card:nth-child(2) { animation-delay: .06s; }
+.lesson-card:nth-child(3) { animation-delay: .12s; }
+.lesson-card:nth-child(4) { animation-delay: .18s; }
+.lesson-card:nth-child(5) { animation-delay: .24s; }
+.lesson-card:nth-child(6) { animation-delay: .30s; }
+@keyframes drop-in { 0% { opacity: 0; transform: translateY(-14px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes slide-in { 0% { opacity: 0; transform: translateX(-18px); } 100% { opacity: 1; transform: translateX(0); } }
+@keyframes pulse-text { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+@keyframes mic-glow { 0%,100% { box-shadow: 0 6px 0 rgba(0,0,0,.18); } 50% { box-shadow: 0 6px 0 rgba(0,0,0,.18), 0 0 0 8px rgba(0,0,0,.06); } }
+
 /* feedback bar */
 .feedback-bar { position: fixed; left: 0; right: 0; bottom: 0; transform: translateY(110%); transition: transform .3s cubic-bezier(.2,.8,.3,1.2); z-index: 30; }
 .feedback-bar.show { transform: translateY(0); }

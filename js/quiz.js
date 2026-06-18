@@ -48,7 +48,27 @@ const Quiz = (function () {
       // drop it roughly in the middle so the lesson has variety
       shuffled.splice(Math.floor(shuffled.length / 2), 0, match);
     }
+    // spelling practice for kid-doable words (the "understand the spelling" step)
+    const spellable = groupWords.filter(w => w.word.length <= 8);
+    shuffle(spellable).slice(0, 3).forEach(w => shuffled.push(buildSpell(w)));
+    // one "say it out loud" pronunciation challenge
+    shuffled.push(buildSay(groupWords[0]));
     return shuffled;
+  }
+
+  /* Spelling: rebuild the word from its scrambled letters. */
+  function buildSpell(w) {
+    const letters = w.word.toUpperCase().split("");
+    return {
+      type: "spell", word: w.word, emoji: w.emoji,
+      prompt: "Spell the word", target: w.word.toUpperCase(),
+      tiles: shuffle(letters), why: "It is spelled " + w.word.toUpperCase()
+    };
+  }
+
+  /* Pronunciation: say the word out loud (mic check, with skip). */
+  function buildSay(w) {
+    return { type: "say", word: w.word, emoji: w.emoji, prompt: "Say this word out loud!", why: "Great speaking!" };
   }
 
   /* Choose 1–2 question styles per word depending on what data it has. */

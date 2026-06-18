@@ -236,6 +236,7 @@ const App = (function () {
         <div class="flash-wordline">
           <h1 class="flash-word">${esc(w.word)}</h1>
           <button class="speak-btn" data-action="speak" data-text="${esc(w.word)}" title="Hear it">🔊</button>
+          ${Audio.micSupported() ? `<button class="speak-btn mic" data-action="flash-say" data-text="${esc(w.word)}" title="Say it yourself">🎤</button>` : ""}
         </div>
         <div class="flash-say">say it: <b>${esc(w.say || "")}</b> &nbsp;·&nbsp; <i>${esc(w.pos)}</i></div>
         <p class="flash-meaning">${esc(w.meaning)}</p>
@@ -281,6 +282,8 @@ const App = (function () {
     if (!q) return finishLesson();
     const total = session.questions.length;
     if (q.type === "match") return renderMatch(q, total);
+    if (q.type === "spell") return renderSpell(q, total);
+    if (q.type === "say") return renderSay(q, total);
 
     let stemHtml = "";
     if (q.stem === "__LISTEN__") {
@@ -377,6 +380,112 @@ const App = (function () {
       m.selectedLeft = null;
     }
   }
+
+  /* ---- spelling game ---- */
+  function renderSpell(q, total) {
+    session._spell = { target: q.target, built: [] };
+    setTimeout(() => Audio.say(q.word), 250);
+    const visual = Art.has(q.word) ? `<div class="q-art">${Art.svg(q.word)}</div>` : `<div class="spell-emoji">${q.emoji}</div>`;
+    const slots = q.target.split("").map((_, i) => `<span class="spell-slot" data-slot="${i}"></span>`).join("");
+    const tiles = q.tiles.map((ch, i) => `<button class="spell-tile" data-tile="${i}" data-ch="${esc(ch)}">${esc(ch)}</button>`).join("");
+    render(`
+    <div class="screen quiz spell-screen" style="--c:${session.color}">
+      ${lessonTopBar(total)}
+      <div class="q-body pop-in">
+        <h2 class="q-prompt">🔤 ${esc(q.prompt)}</h2>
+        ${visual}
+        <button class="speak-btn wide" data-action="speak" data-text="${esc(q.word)}">🔊 hear it</button>
+        <div class="spell-slots">${slots}</div>
+        <div class="spell-tiles">${tiles}</div>
+        <button class="btn btn-soft spell-clear" data-action="spell-clear">⌫ Undo</button>
+      </div>
+      <div class="feedback-bar" id="fb"></div>
+    </div>`);
+  }
+
+  function spellTap(btn) {
+    const m = session._spell;
+    if (!m || btn.disabled || btn.classList.contains("used")) return;
+    m.built.push({ ch: btn.dataset.ch, tileIdx: btn.dataset.tile });
+    btn.classList.add("used"); btn.disabled = true;
+    Audio.tap();
+    const slot = $$(".spell-slot")[m.built.length - 1];
+    if (slot) { slot.textContent = btn.dataset.ch; slot.classList.add("filled"); }
+    if (m.built.length === m.target.length) setTimeout(checkSpell, 200);
+  }
+
+  function spellClear() {
+    const m = session._spell;
+    if (!m || !m.built.length) return;
+    const last = m.built.pop();
+    const tile = $(`.spell-tile[data-tile="${last.tileIdx}"]`);
+    if (tile) { tile.classList.remove("used"); tile.disabled = false; }
+    const slot = $$(".spell-slot")[m.built.length];
+    if (slot) { slot.textContent = ""; slot.classList.remove("filled"); }
+    Audio.tap();
+  }
+
+  function checkSpell() {
+    const m = session._spell;
+    const q = session.questions[session.qIndex];
+    const guess = m.built.map(b => b.ch).join("");
+    if (guess === m.target) {
+      Audio.correct(); burstConfetti(16);
+      Store.recordWord(q.word, true); Store.addXp(10); Store.addGems(1);
+      $$(".spell-slot").forEach(s => s.classList.add("right"));
+      showFeedback(true, { why: q.why }, () => { session.qIndex++; renderQuestion(); });
+    } else {
+      Audio.wrong(); session.wrongCount++;
+      Store.recordWord(q.word, false);
+      Store.logError({ letter: session.letter, word: q.word, type: "spell", prompt: "Spell the word", chosen: guess, correct: m.target });
+      $$(".spell-slot").forEach(s => s.classList.add("shake-slot"));
+      setTimeout(() => {
+        m.built = [];
+        $$(".spell-slot").forEach(s => { s.textContent = ""; s.classList.remove("filled", "shake-slot"); });
+        $$(".spell-tile").forEach(t => { t.classList.remove("used"); t.disabled = false; });
+      }, 750);
+    }
+  }
+
+  /* ---- pronunciation (say it!) ---- */
+  function renderSay(q, total) {
+    const supported = Audio.micSupported();
+    const visual = Art.has(q.word) ? `<div class="q-art">${Art.svg(q.word)}</div>` : `<div class="spell-emoji">${q.emoji}</div>`;
+    setTimeout(() => Audio.say(q.word), 250);
+    render(`
+    <div class="screen quiz say-screen" style="--c:${session.color}">
+      ${lessonTopBar(total)}
+      <div class="q-body pop-in">
+        <h2 class="q-prompt">🎤 ${esc(q.prompt)}</h2>
+        ${visual}
+        <div class="say-word">${esc(q.word)}</div>
+        <button class="speak-btn wide" data-action="speak" data-text="${esc(q.word)}">🔊 hear it first</button>
+        <div class="say-status" id="sayStatus"></div>
+        <button class="btn btn-primary btn-big mic-btn" data-action="say-listen">🎤 Tap &amp; say it</button>
+        <button class="btn btn-ghost" data-action="say-skip">${supported ? "Skip this" : "I said it ✓ — continue"}</button>
+      </div>
+    </div>`);
+  }
+
+  function sayListen() {
+    const q = session.questions[session.qIndex];
+    const st = $("#sayStatus");
+    if (st) { st.className = "say-status listening"; st.textContent = `🎙️ Listening… say “${q.word}”`; }
+    Audio.listen(q.word, (ok, said) => {
+      if (ok) {
+        Audio.correct(); burstConfetti(16); Store.recordWord(q.word, true); Store.addXp(10);
+        if (st) { st.className = "say-status ok"; st.textContent = "Perfect! 🎉"; }
+        setTimeout(() => { session.qIndex++; renderQuestion(); }, 1000);
+      } else if (ok === false) {
+        Audio.wrong();
+        if (st) { st.className = "say-status no"; st.textContent = `I heard “${said || "…"}”. Try again!`; }
+      } else {
+        if (st) { st.className = "say-status"; st.textContent = "🎤 Mic isn't available here — tap “I said it” to go on."; }
+      }
+    });
+  }
+
+  function saySkip() { const q = session.questions[session.qIndex]; Store.recordWord(q.word, true); session.qIndex++; renderQuestion(); }
 
   function answer(choice, btn) {
     const q = session.questions[session.qIndex];
@@ -570,6 +679,10 @@ const App = (function () {
 
       <section class="panel">
         <h3>🔊 Voice <small>(reads words aloud)</small></h3>
+        <div class="voice-gender">
+          <button class="gbtn ${s.settings.voiceGender === "female" ? "active" : ""}" data-action="voice-female">👩 Female</button>
+          <button class="gbtn ${s.settings.voiceGender === "male" ? "active" : ""}" data-action="voice-male">👨 Male</button>
+        </div>
         ${voicePickerHtml(s)}
         <div class="voice-row">
           <label class="rate-label">🐢 Speed</label>
@@ -605,11 +718,12 @@ const App = (function () {
     const r = root();
 
     r.onclick = (e) => {
-      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick],[data-mleft],[data-mright]");
+      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick],[data-mleft],[data-mright],[data-tile]");
       if (!t) return;
 
       if (t.dataset.mleft !== undefined) return matchTap("left", +t.dataset.mleft, t);
       if (t.dataset.mright !== undefined) return matchTap("right", +t.dataset.mright, t);
+      if (t.dataset.tile !== undefined) return spellTap(t);
 
       if (t.dataset.themePick) {
         const k = t.dataset.themePick;
@@ -667,6 +781,20 @@ const App = (function () {
         Store.touchDay(); Audio.pop(); screenHome(); break;
       }
       case "speak": Audio.speak(t.dataset.text); break;
+      case "spell-clear": spellClear(); break;
+      case "say-listen": sayListen(); break;
+      case "say-skip": saySkip(); break;
+      case "flash-say": {
+        const word = t.dataset.text; toast("🎙️ Listening…");
+        Audio.listen(word, (ok, said) => {
+          if (ok) { Audio.correct(); toast("Perfect! 🎉"); }
+          else if (ok === false) { Audio.wrong(); toast(`I heard “${said || "…"}”. Try again!`); }
+          else { toast("🎤 Mic isn't available here."); }
+        });
+        break;
+      }
+      case "voice-female": Store.setSetting("voiceGender", "female"); Audio.setGender("female"); Audio.say("Hello! Let's learn!"); screenParent(); break;
+      case "voice-male": Store.setSetting("voiceGender", "male"); Audio.setGender("male"); Audio.say("Hello! Let's learn!"); screenParent(); break;
       case "flash-next": flashNext(); break;
       case "continue": if (session && session._continue) { const n = session._continue; session._continue = null; n(); } break;
       case "quit-lesson": flushTime(); if (confirmLeave()) { session = null; route("home"); } break;
@@ -791,6 +919,7 @@ const App = (function () {
     Audio.setTheme(s.theme || "sparkle");
     Audio.setVoice(s.settings.voice);
     Audio.setSfx(s.settings.sfx);
+    if (s.settings.voiceGender) Audio.setGender(s.settings.voiceGender);
     if (s.settings.voiceName) Audio.setVoiceByName(s.settings.voiceName);
     if (s.settings.rate) Audio.setRate(s.settings.rate);
     if (s.settings.music) Audio.startMusic();

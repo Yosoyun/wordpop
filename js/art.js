@@ -149,6 +149,86 @@ const Art = (function () {
       <circle cx="76" cy="47" r="6" fill="#fff"/><circle cx="76" cy="48" r="3" fill="#3B2E5A"/>
       <path d="M44 78 Q60 90 76 78" fill="none" stroke="#3B7a47" stroke-width="4" stroke-linecap="round"/>
       <circle cx="49" cy="76" r="3" fill="#FF6B9D" opacity=".5"/><circle cx="71" cy="76" r="3" fill="#FF6B9D" opacity=".5"/>
+    </svg>`,
+
+    bird: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#DDF3F0')}
+      <ellipse cx="56" cy="66" rx="30" ry="25" fill="#4D96FF"/>
+      <circle cx="74" cy="50" r="16" fill="#4D96FF"/>
+      <circle cx="79" cy="47" r="4.5" fill="#fff"/><circle cx="80" cy="47" r="2.2" fill="#3B2E5A"/>
+      <path d="M90 49 L104 53 L90 57Z" fill="#FFC93C"/>
+      <path d="M38 60 Q54 54 64 68 Q50 76 38 60Z" fill="#2E7BE0"/>
+      <path d="M68 88 l-4 8 M78 88 l4 8" stroke="#FFC93C" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+
+    box: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFF3D6')}
+      <path d="M30 56 L60 44 L90 56 L60 68Z" fill="#E0A85C"/>
+      <path d="M30 56 L60 68 L60 96 L30 84Z" fill="#C98C42"/>
+      <path d="M90 56 L60 68 L60 96 L90 84Z" fill="#B87C36"/>
+      <path d="M44 50 L74 62" stroke="#fff" stroke-width="2" opacity=".4"/>
+    </svg>`,
+
+    cake: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFE6F0')}
+      <rect x="34" y="62" width="52" height="30" rx="6" fill="#FF8FC7"/>
+      <path d="M34 72 q6.5 8 13 0 q6.5 8 13 0 q6.5 8 13 0 q6.5 8 13 0 V64 H34Z" fill="#fff"/>
+      <rect x="58" y="40" width="4" height="20" fill="#FFC93C"/>
+      <ellipse cx="60" cy="37" rx="4" ry="7" fill="#FF5C5C"/>
+      <circle cx="46" cy="82" r="3" fill="#FFC93C"/><circle cx="74" cy="82" r="3" fill="#7AC7FF"/>
+    </svg>`,
+
+    cup: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFE6DD')}
+      <path d="M40 50 H78 V76 a13 13 0 0 1 -13 13 H53 a13 13 0 0 1 -13 -13 Z" fill="#FF7A5C"/>
+      <path d="M78 56 a11 11 0 0 1 0 20" fill="none" stroke="#FF7A5C" stroke-width="6"/>
+      <rect x="40" y="50" width="38" height="7" rx="3" fill="#fff" opacity=".5"/>
+      <path d="M52 38 q4 -8 0 -14 M62 38 q4 -8 0 -14" stroke="#C9BFD8" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`,
+
+    door: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#EDE4FB')}
+      <rect x="40" y="28" width="40" height="70" rx="5" fill="#8A4FFF"/>
+      <rect x="46" y="35" width="28" height="26" rx="3" fill="#6E3BD0"/>
+      <rect x="46" y="66" width="28" height="26" rx="3" fill="#6E3BD0"/>
+      <circle cx="70" cy="64" r="3.5" fill="#FFC93C"/>
+    </svg>`,
+
+    dream: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#DDEBFF')}
+      <ellipse cx="56" cy="68" rx="30" ry="17" fill="#fff"/>
+      <circle cx="44" cy="62" r="14" fill="#fff"/><circle cx="64" cy="56" r="17" fill="#fff"/>
+      <text x="72" y="46" font-size="15" fill="#7AC7FF" font-family="sans-serif" font-weight="bold">z</text>
+      <text x="83" y="36" font-size="20" fill="#4D96FF" font-family="sans-serif" font-weight="bold">Z</text>
+    </svg>`,
+
+    give: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#E3F7E9')}
+      <rect x="36" y="56" width="48" height="36" rx="4" fill="#FF6B9D"/>
+      <rect x="56" y="56" width="8" height="36" fill="#fff"/>
+      <rect x="36" y="68" width="48" height="8" fill="#fff"/>
+      <path d="M60 56 q-14 -16 -20 -4 q-2 10 20 4Z" fill="#FFC93C"/>
+      <path d="M60 56 q14 -16 20 -4 q2 10 -20 4Z" fill="#FFC93C"/>
+      <circle cx="60" cy="55" r="4" fill="#FF9F45"/>
+    </svg>`,
+
+    hand: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFF3D6')}
+      <rect x="48" y="54" width="30" height="36" rx="13" fill="#F4B07A"/>
+      <rect x="50" y="38" width="6" height="28" rx="3" fill="#F4B07A"/>
+      <rect x="58" y="32" width="6" height="34" rx="3" fill="#F4B07A"/>
+      <rect x="66" y="34" width="6" height="32" rx="3" fill="#F4B07A"/>
+      <rect x="74" y="40" width="6" height="26" rx="3" fill="#F4B07A"/>
+      <rect x="38" y="56" width="9" height="18" rx="4.5" fill="#F4B07A" transform="rotate(-32 42 62)"/>
+    </svg>`,
+
+    hug: `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tile('#FFE6F0')}
+      <circle cx="46" cy="52" r="15" fill="#FF8FC7"/>
+      <circle cx="74" cy="52" r="15" fill="#7AC7FF"/>
+      <path d="M30 96 q0 -26 16 -26 q16 0 16 26Z" fill="#FF8FC7"/>
+      <path d="M58 96 q0 -26 16 -26 q16 0 16 26Z" fill="#7AC7FF"/>
+      <path d="M40 74 q20 10 40 0" fill="none" stroke="#FF6B9D" stroke-width="4" stroke-linecap="round"/>
     </svg>`
   };
 

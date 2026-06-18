@@ -17,6 +17,16 @@ const Audio = (function () {
   let chosenName = null;      // parent-selected voice name (overrides auto)
   let theme = "sparkle";      // changes the flavour of the sound effects
   let musicTimer = null, musicOn = false;
+  let prefGender = null;      // "female" | "male" | null (auto)
+
+  const FEMALE_RE = /(samantha|karen|moira|tessa|fiona|serena|allison|ava|susan|zira|hazel|victoria|kate|aria|jenny|libby|sonia|natasha|nicky|veena|female|woman|girl|google uk english female|google us english)/;
+  const MALE_RE = /(daniel|alex|fred|thomas|tom |oliver|george|james|mark|david|guy|ryan|rishi|aaron|arthur|male|google uk english male|microsoft mark)/;
+  function voiceGender(v) {
+    const n = (v.name + " " + v.lang).toLowerCase();
+    if (MALE_RE.test(n) && !FEMALE_RE.test(n)) return "male";
+    if (FEMALE_RE.test(n)) return "female";
+    return "unknown";
+  }
 
   function allVoices() {
     if (!("speechSynthesis" in window)) return [];
@@ -44,7 +54,12 @@ const Audio = (function () {
       const match = voices.find(v => v.name === chosenName);
       if (match) { preferredVoice = match; return; }
     }
-    preferredVoice = voices.slice().sort((a, b) => score(b) - score(a))[0] || null;
+    let pool = voices;
+    if (prefGender) {
+      const g = voices.filter(v => voiceGender(v) === prefGender);
+      if (g.length) pool = g;
+    }
+    preferredVoice = pool.slice().sort((a, b) => score(b) - score(a))[0] || null;
   }
 
   if ("speechSynthesis" in window) {
@@ -69,6 +84,34 @@ const Audio = (function () {
 
   /* speak a word slowly and clearly (used on flashcards) */
   function say(word) { speak(word, { rate: Math.max(0.7, rate - 0.06) }); }
+
+  /* ---- microphone pronunciation check (works when online; degrades gracefully) ---- */
+  function micSupported() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+  function listen(expected, cb) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { cb && cb(null, ""); return null; }
+    const norm = s => String(s).toLowerCase().replace(/[^a-z]/g, "");
+    try {
+      const r = new SR();
+      r.lang = "en-US"; r.interimResults = false; r.maxAlternatives = 4;
+      let done = false;
+      r.onresult = (e) => {
+        done = true;
+        let ok = false, said = "";
+        const alts = e.results[0];
+        for (let i = 0; i < alts.length; i++) {
+          const t = alts[i].transcript.trim();
+          if (i === 0) said = t;
+          if (norm(t) === norm(expected) || norm(t).indexOf(norm(expected)) > -1) ok = true;
+        }
+        cb && cb(ok, said);
+      };
+      r.onerror = () => { if (!done) { done = true; cb && cb(null, ""); } };
+      r.onend = () => { if (!done) { done = true; cb && cb(null, ""); } };
+      r.start();
+      return r;
+    } catch (e) { cb && cb(null, ""); return null; }
+  }
 
   function ensureCtx() {
     if (!ctx) {
@@ -129,7 +172,10 @@ const Audio = (function () {
     correct, wrong, pop, fanfare, tap, sparkle,
     setTheme: (t) => { theme = t; },
     startMusic, stopMusic, isMusicOn: () => musicOn,
-    listVoices: () => allVoices().map(v => ({ name: v.name, lang: v.lang })),
+    micSupported, listen,
+    setGender: (g) => { prefGender = g; chosenName = null; chooseVoice(); },
+    getGender: () => prefGender,
+    listVoices: () => allVoices().map(v => ({ name: v.name, lang: v.lang, gender: voiceGender(v) })),
     setVoiceByName: (name) => { chosenName = name || null; chooseVoice(); },
     getVoiceName: () => preferredVoice ? preferredVoice.name : "",
     setRate: (r) => { rate = r; },

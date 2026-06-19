@@ -3,28 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#FFF6E9" />
+  <meta name="theme-color" content="#FFF1F8" />
   <meta name="description" content="WordPop — learn beautiful words with pictures, sound and games. A joyful English vocabulary app for kids in grades 1–5." />
   <title>WordPop — Learn Beautiful Words</title>
 
-  <!-- Emoji favicon (works offline) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫧</text></svg>" />
+  <!-- Installable offline app (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="WordPop" />
 
-  <link rel="stylesheet" href="css/styles.css?v=0.7" />
+  <link rel="stylesheet" href="css/styles.css?v=0.8" />
 </head>
 <body>
   <main id="app"><!-- the whole app renders here --></main>
 
   <!-- Order matters: words → data → art → themes → audio → store → quiz → app
        Bump ?v=… whenever you change a file, so reopened apps fetch the new version. -->
-  <script src="js/words-b-f.js?v=0.7"></script>
-  <script src="js/words-g-k.js?v=0.7"></script>
-  <script src="js/data.js?v=0.7"></script>
-  <script src="js/art.js?v=0.7"></script>
-  <script src="js/themes.js?v=0.7"></script>
-  <script src="js/audio.js?v=0.7"></script>
-  <script src="js/store.js?v=0.7"></script>
-  <script src="js/quiz.js?v=0.7"></script>
-  <script src="js/app.js?v=0.7"></script>
+  <script src="js/words-b-f.js?v=0.8"></script>
+  <script src="js/words-g-k.js?v=0.8"></script>
+  <script src="js/data.js?v=0.8"></script>
+  <script src="js/art.js?v=0.8"></script>
+  <script src="js/themes.js?v=0.8"></script>
+  <script src="js/audio.js?v=0.8"></script>
+  <script src="js/store.js?v=0.8"></script>
+  <script src="js/quiz.js?v=0.8"></script>
+  <script src="js/app.js?v=0.8"></script>
+
+  <!-- register the offline service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js?v=0.8').catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>

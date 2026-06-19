@@ -318,7 +318,7 @@ const LETTER_E = [
   { word: "Eat", pos: "doing word", emoji: "🍽️", say: "EET", tier: 1,
     meaning: "To put food in your mouth and swallow it.",
     example: "I like to eat warm chapati with butter.",
-    synonyms: ["chew", "munch", "bite"], antonyms: ["fast"] },
+    synonyms: ["chew", "munch", "bite"], antonyms: [] },
   { word: "Egg", pos: "naming word", emoji: "🥚", say: "EG", tier: 1,
     meaning: "A smooth oval thing that a baby bird grows inside.",
     example: "Mum cracked an egg into the pan for breakfast.",

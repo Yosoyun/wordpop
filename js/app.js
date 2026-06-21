@@ -140,7 +140,8 @@ const App = (function () {
         <button class="node ${locked ? "locked" : "open"} ${isCurrent ? "current" : ""} ${fullyDone ? "done" : ""}" style="--c:${L.color}"
                 data-letter="${L.letter}" ${locked ? "data-locked='1'" : ""}>
           <span class="node-shine"></span>
-          <span class="node-letter">${locked && !hasWords ? L.letter : (locked ? "🔒" : L.letter)}</span>
+          <span class="node-letter">${L.letter}</span>
+          ${locked ? `<span class="node-locktag">🔒</span>` : ""}
           ${crown}${badge}
         </button>
         <span class="node-caption">${esc(L.theme)}</span>
@@ -628,12 +629,25 @@ const App = (function () {
       Audio.wrong(); session.wrongCount++;
       Store.recordWord(q.word, false);
       Store.logError({ letter: session.letter, word: q.word, type: "spell", prompt: "Spell the word", chosen: guess, correct: m.target });
-      $$(".spell-slot").forEach(s => s.classList.add("shake-slot"));
+      // KIND retry: keep the correct letters, only clear from the first wrong one onward
+      let keep = 0;
+      while (keep < m.built.length && m.built[keep].ch === m.target[keep]) keep++;
+      const slots = $$(".spell-slot");
+      // gently flag the first wrong slot
+      if (slots[keep]) slots[keep].classList.add("shake-slot");
       setTimeout(() => {
-        m.built = [];
-        $$(".spell-slot").forEach(s => { s.textContent = ""; s.classList.remove("filled", "shake-slot"); });
-        $$(".spell-tile").forEach(t => { t.classList.remove("used"); t.disabled = false; });
-      }, 750);
+        // re-enable the tiles used after the correct prefix, and clear those slots
+        for (let i = m.built.length - 1; i >= keep; i--) {
+          const b = m.built[i];
+          const tile = $(`.spell-tile[data-tile="${b.tileIdx}"]`);
+          if (tile) { tile.classList.remove("used"); tile.disabled = false; }
+        }
+        m.built = m.built.slice(0, keep);
+        slots.forEach((s, i) => {
+          s.classList.remove("shake-slot");
+          if (i >= keep) { s.textContent = ""; s.classList.remove("filled"); }
+        });
+      }, 600);
     }
   }
 
@@ -666,7 +680,19 @@ const App = (function () {
       cards.push({ pair: i, kind: "pic", emoji: it.emoji, word: it.word });
     });
     session._mem = { cards: Quiz.shuffle(cards), flipped: [], matched: 0, count: q.items.length, lock: false, seconds: 0 };
-    renderMemoryGrid(total);
+    const m = session._mem;
+    // render the grid ONCE; taps update only the cards that change (no re-render = no "dancing")
+    const cardsHtml = m.cards.map((c, i) => `<button class="mem-card" data-mem="${i}"><span class="mem-back">★</span></button>`).join("");
+    render(`
+    <div class="screen quiz memory-screen" style="--c:${session.color}">
+      ${lessonTopBar(total)}
+      <div class="q-body pop-in">
+        <h2 class="q-prompt">🧠 Memory Match!</h2>
+        <p class="mem-hint">Flip two cards — pair each word with its picture. <span id="memTimer">⏱️ 0s</span></p>
+        <div class="mem-grid">${cardsHtml}</div>
+      </div>
+      <div class="feedback-bar" id="fb"></div>
+    </div>`);
     clearInterval(memTimer);
     memTimer = setInterval(() => {
       if (!session || !session._mem) { clearInterval(memTimer); return; }
@@ -675,49 +701,39 @@ const App = (function () {
       if (el) el.textContent = "⏱️ " + session._mem.seconds + "s";
     }, 1000);
   }
-  function renderMemoryGrid(total) {
-    const m = session._mem;
-    const cardsHtml = m.cards.map((c, i) => {
-      const face = c.kind === "word"
-        ? `<span class="mem-word">${esc(cap(c.label))}</span>`
-        : (Art.has(c.word) ? `<span class="mem-art">${Art.svg(c.word)}</span>` : `<span class="mem-emoji">${c.emoji}</span>`);
-      const up = c.up || c.matched;
-      return `<button class="mem-card ${c.matched ? "matched" : (c.up ? "up" : "")}" data-mem="${i}">${up ? face : `<span class="mem-back">★</span>`}</button>`;
-    }).join("");
-    render(`
-    <div class="screen quiz memory-screen" style="--c:${session.color}">
-      ${lessonTopBar(total)}
-      <div class="q-body pop-in">
-        <h2 class="q-prompt">🧠 Memory Match!</h2>
-        <p class="mem-hint">Flip two cards — pair each word with its picture. <span id="memTimer">⏱️ ${m.seconds}s</span></p>
-        <div class="mem-grid">${cardsHtml}</div>
-      </div>
-      <div class="feedback-bar" id="fb"></div>
-    </div>`);
+  function memFace(c) {
+    return c.kind === "word"
+      ? `<span class="mem-word">${esc(cap(c.label))}</span>`
+      : (Art.has(c.word) ? `<span class="mem-art">${Art.svg(c.word)}</span>` : `<span class="mem-emoji">${c.emoji}</span>`);
   }
+  function memEl(i) { return document.querySelector(`.mem-card[data-mem="${i}"]`); }
+
   function memoryTap(idx) {
     const m = session._mem;
     if (!m || m.lock) return;
     const c = m.cards[idx];
     if (!c || c.up || c.matched) return;
-    c.up = true; Audio.pop(); m.flipped.push(idx);
-    if (m.flipped.length < 2) { renderMemoryGrid(session.questions.length); return; }
-    const a = m.cards[m.flipped[0]], b = m.cards[m.flipped[1]];
+    const el = memEl(idx); if (!el) return;
+    c.up = true; el.classList.add("up"); el.innerHTML = memFace(c);
+    Audio.pop(); m.flipped.push(idx);
+    if (m.flipped.length < 2) return;
+    const ai = m.flipped[0], bi = m.flipped[1];
+    const a = m.cards[ai], b = m.cards[bi];
     if (a.pair === b.pair) {
       a.matched = b.matched = true; m.matched++; m.flipped = [];
+      [ai, bi].forEach(k => { const e = memEl(k); if (e) e.classList.add("matched"); });
       Audio.correct(); Store.recordWord(a.word, true); Store.addXp(5);
-      renderMemoryGrid(session.questions.length);
       if (m.matched === m.count) {
-        clearInterval(memTimer);
-        Store.addGems(2); burstConfetti(24);
+        clearInterval(memTimer); Store.addGems(2); burstConfetti(24);
         showFeedback(true, { why: "Amazing memory — done in " + m.seconds + "s! 🧠" }, () => { session.qIndex++; renderQuestion(); });
       }
     } else {
       m.lock = true; Audio.wrong();
-      renderMemoryGrid(session.questions.length);
+      [ai, bi].forEach(k => { const e = memEl(k); if (e) e.classList.add("mem-miss"); });
       setTimeout(() => {
+        if (!session || session._mem !== m) return;
+        [ai, bi].forEach(k => { const e = memEl(k); if (e) { e.classList.remove("up", "mem-miss"); e.innerHTML = `<span class="mem-back">★</span>`; } });
         a.up = false; b.up = false; m.flipped = []; m.lock = false;
-        if (session && session._mem === m) renderMemoryGrid(session.questions.length);
       }, 850);
     }
   }
@@ -809,7 +825,7 @@ const App = (function () {
         </button>
       </div>`;
     session._continue = next;
-    if (ok) burstConfetti(10);
+    // (no per-answer confetti — confetti is reserved for real milestones so it stays special)
   }
 
   function pickPraise() {
@@ -1207,7 +1223,7 @@ const App = (function () {
   }
   function bubbleField() {
     // themed floating decorations (hearts/sparkles or stars/bolts)
-    return (typeof Themes !== "undefined") ? Themes.floatField(Themes.current(), 16) : "";
+    return (typeof Themes !== "undefined") ? Themes.floatField(Themes.current(), 6) : "";
   }
   function toast(msg) {
     let t = document.getElementById("toast");

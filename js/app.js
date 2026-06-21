@@ -9,6 +9,7 @@ const App = (function () {
   let session = null;        // active quiz/flashcard session
   let sessionStart = 0;      // for time tracking
   let parentUnlocked = false;
+  let memTimer = null;       // Memory Match timer
 
   /* ---------- tiny helpers ---------- */
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
@@ -334,18 +335,26 @@ const App = (function () {
     const items = clusters.map((c, ci) => {
       const id = L.letter + ":" + ci;
       const prog = s.lessons[id] || { completed: false, stars: 0 };
-      const prevDone = ci === 0 || (s.lessons[L.letter + ":" + (ci - 1)] || {}).completed;
-      const locked = !prevDone;
+      // MASTERY GATE: the next lesson opens only once the previous is mastered (2★+)
+      const prev = s.lessons[L.letter + ":" + (ci - 1)] || {};
+      const prevMastered = ci === 0 || (prev.completed && (prev.stars || 0) >= 2);
+      const locked = !prevMastered;
+      const needsMaster = prog.completed && (prog.stars || 0) < 2;   // done but not yet mastered
       const stars = [1, 2, 3].map(n => `<span class="star ${prog.stars >= n ? "on" : ""}">★</span>`).join("");
+      let right;
+      if (locked) right = `<span class="lesson-lock">🔒</span>`;
+      else if (needsMaster) right = `<span class="lesson-redo">↻</span>`;
+      else if (prog.completed) right = `<span class="lesson-check">✓</span>`;
+      else right = `<span class="lesson-go">▶</span>`;
       return `
-        <button class="lesson-card ${locked ? "locked" : ""} ${prog.completed ? "done" : ""}"
+        <button class="lesson-card ${locked ? "locked" : ""} ${prog.completed && !needsMaster ? "done" : ""} ${needsMaster ? "needs-master" : ""}"
                 data-lesson="${id}" ${locked ? "data-locked='1'" : ""}>
           <span class="lesson-icon">${c.kind === "review" ? "🏆" : "🫧"}</span>
           <span class="lesson-body">
             <span class="lesson-title">${esc(c.title)}</span>
-            <span class="lesson-stars">${stars}</span>
+            <span class="lesson-stars">${stars}${needsMaster ? `<small class="master-hint"> — get ★★ to unlock next</small>` : ""}</span>
           </span>
-          ${locked ? `<span class="lesson-lock">🔒</span>` : prog.completed ? `<span class="lesson-check">✓</span>` : `<span class="lesson-go">▶</span>`}
+          ${right}
         </button>`;
     }).join("");
     render(`
@@ -461,13 +470,15 @@ const App = (function () {
     const total = session.questions.length;
     if (q.type === "match") return renderMatch(q, total);
     if (q.type === "spell") return renderSpell(q, total);
+    if (q.type === "anagram") return renderAnagram(q, total);
+    if (q.type === "memory") return renderMemory(q, total);
     if (q.type === "say") return renderSay(q, total);
 
     let stemHtml = "";
     if (q.stem === "__LISTEN__") {
       stemHtml = `<button class="big-speaker" data-action="speak" data-text="${esc(q.word)}">🔊<span>tap to hear</span></button>`;
     } else {
-      const art = Art.has(q.word) && q.optionStyle !== "picture" ? `<div class="q-art">${Art.svg(q.word)}</div>` : "";
+      const art = Art.has(q.word) && q.optionStyle !== "picture" && q.type !== "oddone" ? `<div class="q-art">${Art.svg(q.word)}</div>` : "";
       let stemText = q.stem;
       if (art && q.emoji && stemText.indexOf(q.emoji) === 0) stemText = stemText.slice(q.emoji.length).trim();
       stemHtml = art + (stemText ? `<div class="q-stem">${esc(stemText)}</div>` : "");
@@ -514,6 +525,7 @@ const App = (function () {
       ${lessonTopBar(total)}
       <div class="q-body pop-in">
         <h2 class="q-prompt">🔗 ${esc(q.prompt)}</h2>
+        <p class="mem-hint">Tap a word 👉 then tap its meaning</p>
         <div class="match-grid">
           <div class="match-col">${lefts}</div>
           <div class="match-col">${rights}</div>
@@ -625,6 +637,91 @@ const App = (function () {
     }
   }
 
+  /* ---- anagram (unscramble using the meaning as a clue) ---- */
+  function renderAnagram(q, total) {
+    session._spell = { target: q.target, built: [] };
+    const visual = Art.has(q.word) ? `<div class="q-art">${Art.svg(q.word)}</div>` : `<div class="spell-emoji">${q.emoji}</div>`;
+    const slots = q.target.split("").map((_, i) => `<span class="spell-slot" data-slot="${i}"></span>`).join("");
+    const tiles = q.tiles.map((ch, i) => `<button class="spell-tile" data-tile="${i}" data-ch="${esc(ch)}">${esc(ch)}</button>`).join("");
+    render(`
+    <div class="screen quiz spell-screen" style="--c:${session.color}">
+      ${lessonTopBar(total)}
+      <div class="q-body pop-in">
+        <h2 class="q-prompt">🧩 ${esc(q.prompt)}</h2>
+        ${visual}
+        <p class="anagram-clue">💡 ${esc(q.clue)}</p>
+        <div class="spell-slots">${slots}</div>
+        <div class="spell-tiles">${tiles}</div>
+        <button class="btn btn-soft spell-clear" data-action="spell-clear">⌫ Undo</button>
+      </div>
+      <div class="feedback-bar" id="fb"></div>
+    </div>`);
+  }
+
+  /* ---- Memory Match: flip cards to pair each word with its picture ---- */
+  function renderMemory(q, total) {
+    const cards = [];
+    q.items.forEach((it, i) => {
+      cards.push({ pair: i, kind: "word", label: it.word, word: it.word });
+      cards.push({ pair: i, kind: "pic", emoji: it.emoji, word: it.word });
+    });
+    session._mem = { cards: Quiz.shuffle(cards), flipped: [], matched: 0, count: q.items.length, lock: false, seconds: 0 };
+    renderMemoryGrid(total);
+    clearInterval(memTimer);
+    memTimer = setInterval(() => {
+      if (!session || !session._mem) { clearInterval(memTimer); return; }
+      session._mem.seconds++;
+      const el = document.getElementById("memTimer");
+      if (el) el.textContent = "⏱️ " + session._mem.seconds + "s";
+    }, 1000);
+  }
+  function renderMemoryGrid(total) {
+    const m = session._mem;
+    const cardsHtml = m.cards.map((c, i) => {
+      const face = c.kind === "word"
+        ? `<span class="mem-word">${esc(cap(c.label))}</span>`
+        : (Art.has(c.word) ? `<span class="mem-art">${Art.svg(c.word)}</span>` : `<span class="mem-emoji">${c.emoji}</span>`);
+      const up = c.up || c.matched;
+      return `<button class="mem-card ${c.matched ? "matched" : (c.up ? "up" : "")}" data-mem="${i}">${up ? face : `<span class="mem-back">★</span>`}</button>`;
+    }).join("");
+    render(`
+    <div class="screen quiz memory-screen" style="--c:${session.color}">
+      ${lessonTopBar(total)}
+      <div class="q-body pop-in">
+        <h2 class="q-prompt">🧠 Memory Match!</h2>
+        <p class="mem-hint">Flip two cards — pair each word with its picture. <span id="memTimer">⏱️ ${m.seconds}s</span></p>
+        <div class="mem-grid">${cardsHtml}</div>
+      </div>
+      <div class="feedback-bar" id="fb"></div>
+    </div>`);
+  }
+  function memoryTap(idx) {
+    const m = session._mem;
+    if (!m || m.lock) return;
+    const c = m.cards[idx];
+    if (!c || c.up || c.matched) return;
+    c.up = true; Audio.pop(); m.flipped.push(idx);
+    if (m.flipped.length < 2) { renderMemoryGrid(session.questions.length); return; }
+    const a = m.cards[m.flipped[0]], b = m.cards[m.flipped[1]];
+    if (a.pair === b.pair) {
+      a.matched = b.matched = true; m.matched++; m.flipped = [];
+      Audio.correct(); Store.recordWord(a.word, true); Store.addXp(5);
+      renderMemoryGrid(session.questions.length);
+      if (m.matched === m.count) {
+        clearInterval(memTimer);
+        Store.addGems(2); burstConfetti(24);
+        showFeedback(true, { why: "Amazing memory — done in " + m.seconds + "s! 🧠" }, () => { session.qIndex++; renderQuestion(); });
+      }
+    } else {
+      m.lock = true; Audio.wrong();
+      renderMemoryGrid(session.questions.length);
+      setTimeout(() => {
+        a.up = false; b.up = false; m.flipped = []; m.lock = false;
+        if (session && session._mem === m) renderMemoryGrid(session.questions.length);
+      }, 850);
+    }
+  }
+
   /* ---- pronunciation (say it!) ---- */
   function renderSay(q, total) {
     const supported = Audio.micSupported();
@@ -730,16 +827,17 @@ const App = (function () {
     Store.completeLesson(session.id, stars);
     const earnedXp = session.correctFirstTry * 10;
     Store.addGems(stars * 2);
-    const letterDone = completedLetters().includes(session.letter);
+    const mastered = stars >= 2;
+    const letterDone = mastered && completedLetters().includes(session.letter);
     const newBadges = checkBadges();
-    const canReview = weightedReview(4).length >= 4;
+    const canReview = mastered && weightedReview(4).length >= 4;
     const starHtml = [1, 2, 3].map(n => `<span class="big-star ${stars >= n ? "on" : ""}" style="animation-delay:${n * .15}s">★</span>`).join("");
     render(`
     <div class="screen complete" style="--c:${session.color}">
       <div class="bubbles-bg">${bubbleField()}</div>
       <div class="complete-card pop-in">
-        ${mascot("celebrate", 120)}
-        <h1>${letterDone ? "Letter " + session.letter + " complete! 🎉" : "Lesson complete!"}</h1>
+        ${mascot(mastered ? "celebrate" : "think", 120)}
+        <h1>${letterDone ? "Letter " + session.letter + " complete! 🎉" : (mastered ? "Lesson mastered! 🌟" : "Good try! 💪")}</h1>
         <div class="big-stars">${starHtml}</div>
         <div class="reward-row">
           <div class="reward"><span>⚡</span><b>+${earnedXp}</b><small>XP</small></div>
@@ -747,9 +845,11 @@ const App = (function () {
           <div class="reward"><span>🔥</span><b>${Store.stats().streak}</b><small>streak</small></div>
         </div>
         ${badgesHtml(newBadges)}
+        ${!mastered ? `<p class="master-msg">Get ★★ to <b>master</b> this and unlock the next lesson. You're so close — try again! 💪</p>
+          <button class="btn btn-primary btn-big" data-action="retry-lesson">↻ Try again</button>` : ""}
         ${letterDone ? `<p class="lock-in-msg">Now lock letter ${session.letter} into memory! 🔁</p>` : ""}
         ${canReview ? `<button class="btn btn-success btn-big" data-action="start-review">🔁 Review &amp; remember</button>` : ""}
-        <button class="btn ${canReview ? "btn-ghost" : "btn-primary btn-big"}" data-action="finish-back">Keep learning! ✨</button>
+        <button class="btn ${(canReview || !mastered) ? "btn-ghost" : "btn-primary btn-big"}" data-action="finish-back">${mastered ? "Keep learning! ✨" : "Back to map"}</button>
       </div>
     </div>`);
   }
@@ -898,11 +998,12 @@ const App = (function () {
     const r = root();
 
     r.onclick = (e) => {
-      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick],[data-mleft],[data-mright],[data-tile]");
+      const t = e.target.closest("[data-go],[data-action],[data-letter],[data-lesson],[data-opt],[data-rate],[data-theme-pick],[data-mleft],[data-mright],[data-tile],[data-mem]");
       if (!t) return;
 
       if (t.dataset.mleft !== undefined) return matchTap("left", +t.dataset.mleft, t);
       if (t.dataset.mright !== undefined) return matchTap("right", +t.dataset.mright, t);
+      if (t.dataset.mem !== undefined) return memoryTap(+t.dataset.mem);
       if (t.dataset.tile !== undefined) return spellTap(t);
 
       if (t.dataset.themePick) {
@@ -921,7 +1022,7 @@ const App = (function () {
       }
 
       if (t.dataset.lesson) {
-        if (t.dataset.locked) { Audio.wrong(); return; }
+        if (t.dataset.locked) { Audio.wrong(); toast("⭐⭐ Master the lesson before this one to unlock it!"); return; }
         Audio.tap(); return startLesson(t.dataset.lesson);
       }
 
@@ -980,8 +1081,9 @@ const App = (function () {
       case "voice-male": Store.setSetting("voiceGender", "male"); Audio.setGender("male"); Audio.say("Hello! Let's learn!"); screenParent(); break;
       case "flash-next": flashNext(); break;
       case "continue": if (session && session._continue) { const n = session._continue; session._continue = null; n(); } break;
-      case "quit-lesson": flushTime(); if (confirmLeave()) { session = null; route("home"); } break;
-      case "finish-back": session = null; screenHome(); break;
+      case "quit-lesson": flushTime(); if (confirmLeave()) { clearInterval(memTimer); session = null; route("home"); } break;
+      case "finish-back": clearInterval(memTimer); session = null; screenHome(); break;
+      case "retry-lesson": { const id = session && session.id; if (id) startLesson(id); break; }
       case "check-pin": {
         const v = ($("#pinInput") || {}).value;
         if (v === Store.get().pin) { parentUnlocked = true; Audio.correct(); screenParent(); }

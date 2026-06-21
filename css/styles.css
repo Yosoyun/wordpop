@@ -273,6 +273,27 @@ body {
 .trophy.earned { background: linear-gradient(160deg, #fff, #FFF7E0); border: 2px solid #FFE9A8; }
 @media (max-width: 380px) { .trophy-grid { grid-template-columns: 1fr 1fr; } }
 
+/* ---------------- anagram ---------------- */
+.anagram-clue { background: var(--bg); border-radius: 14px; padding: 11px 14px; font-weight: 700; color: var(--ink); margin: 12px auto; max-width: 460px; line-height: 1.4; }
+
+/* ---------------- memory match (flip game) ---------------- */
+.mem-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 440px; margin: 0 auto; }
+.mem-card { aspect-ratio: 3 / 4; border: none; border-radius: 16px; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 0 rgba(0,0,0,.14); transition: transform .12s; background: radial-gradient(circle at 38% 28%, rgba(255,255,255,.4), transparent 55%), var(--c); }
+.mem-card .mem-back { font-size: 1.8rem; color: #fff; opacity: .85; }
+.mem-card:active { transform: scale(.95); }
+.mem-card.up, .mem-card.matched { background: #fff; box-shadow: 0 5px 0 rgba(0,0,0,.12); animation: pop-small .25s; }
+.mem-card.matched { box-shadow: 0 0 0 3px var(--ok), 0 5px 0 rgba(0,0,0,.1); opacity: .92; }
+.mem-word { font-family: var(--display); font-weight: 800; font-size: .92rem; color: var(--ink); text-align: center; line-height: 1.05; }
+.mem-emoji { font-size: 2rem; }
+.mem-art svg { width: 52px; height: 52px; }
+
+/* ---------------- mastery gate ---------------- */
+.lesson-redo { color: var(--warn); font-size: 1.5rem; font-weight: 800; }
+.lesson-card.needs-master { background: linear-gradient(100deg, #fff, #FFF6E9); }
+.master-hint { color: var(--warn); font-weight: 700; font-size: .72rem; }
+.master-msg { font-weight: 700; color: var(--warn); margin: 8px 0; line-height: 1.45; }
+.master-msg b { color: var(--bad); }
+
 /* ---------------- letter map ---------------- */
 .letter-head { display: flex; align-items: center; gap: 12px; padding: 6px 4px 16px; }
 .letter-head h2 { font-family: var(--display); margin: 0; font-size: 1.3rem; }
@@ -360,10 +381,14 @@ body {
 .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .match-col { display: flex; flex-direction: column; gap: 10px; }
 .match-item { border: 3px solid #EFE6F6; border-bottom-width: 5px; background: #fff; border-radius: 16px; padding: 12px 10px; font-family: var(--display); font-weight: 700; color: var(--ink); cursor: pointer; transition: transform .08s, border-color .12s, box-shadow .12s; min-height: 64px; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; font-size: .92rem; line-height: 1.22; }
-.match-left { flex-direction: column; gap: 4px; }
-.mi-emoji { font-size: 1.9rem; }
-.mi-art svg { width: 50px; height: 50px; }
+.match-left { flex-direction: row; gap: 8px; }
+.mi-emoji { font-size: 1.6rem; }
+.mi-art svg { width: 38px; height: 38px; }
 .mi-word { font-size: 1.05rem; }
+.match-grid { align-items: start; }
+.match-col:first-child .match-item { min-height: 58px; }
+.mem-hint { position: relative; z-index: 1; color: var(--ink-soft); font-weight: 700; margin: 0 0 14px; }
+.mem-hint #memTimer { color: var(--c); font-weight: 800; margin-left: 6px; }
 .match-item:active { transform: scale(.97); }
 .match-item.sel { border-color: var(--c); box-shadow: 0 6px 16px rgba(0,0,0,.14); transform: translateY(-2px); }
 .match-item.matched { border-color: var(--ok); background: #E3F7E9; color: var(--ok-deep); pointer-events: none; opacity: .92; }

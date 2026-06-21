@@ -44,19 +44,21 @@ const Quiz = (function () {
     const shuffled = shuffle(questions);
     // add a "match the following" round if the group is big enough
     if (groupWords.length >= 3) {
-      const match = buildMatch(groupWords);
-      // drop it roughly in the middle so the lesson has variety
-      shuffled.splice(Math.floor(shuffled.length / 2), 0, match);
+      shuffled.splice(Math.floor(shuffled.length / 2), 0, buildMatch(groupWords));
+    }
+    // a memory-match (flip cards) round — fun + tests memory
+    if (groupWords.length >= 4) {
+      shuffled.splice(Math.min(2, shuffled.length), 0, buildMemory(groupWords));
     }
     // spelling practice for kid-doable words (the "understand the spelling" step)
-    const spellable = groupWords.filter(w => w.word.length <= 8);
-    shuffle(spellable).slice(0, 3).forEach(w => shuffled.push(buildSpell(w)));
+    const spellable = groupWords.filter(w => w.word.length <= 9);
+    shuffle(spellable).slice(0, 2).forEach(w => shuffled.push(buildSpell(w)));
     // one "say it out loud" pronunciation challenge
     shuffled.push(buildSay(groupWords[0]));
     return shuffled;
   }
 
-  /* Spelling: rebuild the word from its scrambled letters. */
+  /* Spelling: rebuild the word from its scrambled letters (audio clue). */
   function buildSpell(w) {
     const letters = w.word.toUpperCase().split("");
     return {
@@ -64,6 +66,22 @@ const Quiz = (function () {
       prompt: "Spell the word", target: w.word.toUpperCase(),
       tiles: shuffle(letters), why: "It is spelled " + w.word.toUpperCase()
     };
+  }
+
+  /* Anagram: unscramble the letters using the MEANING as the clue. */
+  function buildAnagram(w) {
+    const letters = w.word.toUpperCase().split("");
+    return {
+      type: "anagram", word: w.word, emoji: w.emoji,
+      prompt: "Unscramble the word", clue: w.meaning, target: w.word.toUpperCase(),
+      tiles: shuffle(letters), why: "It spells " + w.word.toUpperCase()
+    };
+  }
+
+  /* Memory Match: flip cards to pair each word with its picture. */
+  function buildMemory(words) {
+    const items = shuffle(words).slice(0, 4).map(w => ({ word: w.word, emoji: w.emoji }));
+    return { type: "memory", items };
   }
 
   /* Pronunciation: say the word out loud (mic check, with skip). */
@@ -74,7 +92,9 @@ const Quiz = (function () {
   /* Choose 1–2 question styles per word depending on what data it has. */
   function pickTypes(w) {
     const options = ["meaning", "word", "picture", "listen", "fill"];
+    if (w.word.length <= 9) options.push("anagram");
     if (w.synonyms && w.synonyms.length) options.push("synonym");
+    if (w.synonyms && w.synonyms.length >= 2) options.push("oddone");
     if (w.antonyms && w.antonyms.length) options.push("antonym");
     return shuffle(options).slice(0, 2);
   }
@@ -132,6 +152,16 @@ const Quiz = (function () {
         q.optionMeta = {};
         opts.forEach(o => { q.optionMeta[o.word] = o.emoji; });
         return q;
+      }
+      case "anagram": return buildAnagram(w);
+      case "oddone": {
+        const syns = (w.synonyms || []).filter(s => s.toLowerCase() !== w.word.toLowerCase()).slice(0, 2);
+        if (syns.length < 2) return makeQuestion("meaning", w, others);
+        const odd = pick(others, 1, w)[0];
+        if (!odd) return makeQuestion("meaning", w, others);
+        const options = shuffle([w.word, syns[0], syns[1], odd.word].map(capital));
+        return base("oddone", w, "3 of these mean the SAME. Tap the ODD one out!", "", options, capital(odd.word),
+          "“" + capital(odd.word) + "” is the odd one — the others all mean like “" + w.word + "”.");
       }
     }
   }

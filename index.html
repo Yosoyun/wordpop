@@ -16,28 +16,27 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="WordPop" />
 
-  <link rel="stylesheet" href="css/styles.css?v=0.9" />
+  <link rel="stylesheet" href="css/styles.css?v=1.0" />
 </head>
 <body>
   <main id="app"><!-- the whole app renders here --></main>
 
   <!-- Order matters: words → data → art → themes → audio → store → quiz → app
        Bump ?v=… whenever you change a file, so reopened apps fetch the new version. -->
-  <script src="js/words-b-f.js?v=0.9"></script>
-  <script src="js/words-g-k.js?v=0.9"></script>
-  <script src="js/data.js?v=0.9"></script>
-  <script src="js/art.js?v=0.9"></script>
-  <script src="js/themes.js?v=0.9"></script>
-  <script src="js/audio.js?v=0.9"></script>
-  <script src="js/store.js?v=0.9"></script>
-  <script src="js/quiz.js?v=0.9"></script>
-  <script src="js/app.js?v=0.9"></script>
+  <script src="js/words-all.js?v=1.0"></script>
+  <script src="js/data.js?v=1.0"></script>
+  <script src="js/art.js?v=1.0"></script>
+  <script src="js/themes.js?v=1.0"></script>
+  <script src="js/audio.js?v=1.0"></script>
+  <script src="js/store.js?v=1.0"></script>
+  <script src="js/quiz.js?v=1.0"></script>
+  <script src="js/app.js?v=1.0"></script>
 
   <!-- register the offline service worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js?v=0.9').catch(function () {});
+        navigator.serviceWorker.register('sw.js?v=1.0').catch(function () {});
       });
     }
   </script>

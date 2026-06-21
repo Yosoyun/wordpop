@@ -23,7 +23,9 @@ const Store = (function () {
     lessons: {},                    // "A:0": { stars, completed, best } — progress per mini-lesson
     words: {},                      // "amazing": { seen, correct, wrong, mastered }
     errors: [],                     // every mistake, for the parent's error analysis
-    feedback: []                    // lesson ratings & comments
+    feedback: [],                   // lesson ratings & comments
+    badges: {},                     // earned achievements: id -> timestamp
+    reviews: { lastDay: null, total: 0 }  // cumulative-review tracking
   });
 
   let state = load();
@@ -101,6 +103,23 @@ const Store = (function () {
     save();
   }
 
+  /* Cumulative review: remember she practised today. */
+  function recordReview() {
+    state.reviews.total = (state.reviews.total || 0) + 1;
+    state.reviews.lastDay = todayKey();
+    save();
+  }
+  function reviewedToday() { return state.reviews && state.reviews.lastDay === todayKey(); }
+
+  /* Achievements: award once; returns true the first time it's earned. */
+  function awardBadge(id) {
+    if (state.badges[id]) return false;
+    state.badges[id] = Date.now();
+    save();
+    return true;
+  }
+  function hasBadge(id) { return !!state.badges[id]; }
+
   function level() { return Math.floor(state.xp / 100) + 1; }
   function xpIntoLevel() { return state.xp % 100; }
 
@@ -139,6 +158,7 @@ const Store = (function () {
   return {
     get, save, touchDay, addSeconds, addXp, addGems,
     recordWord, logError, completeLesson, addFeedback,
+    recordReview, reviewedToday, awardBadge, hasBadge,
     stats, level, xpIntoLevel,
     setName, setPin, setPremium, setTheme, setSetting, reset, todayKey
   };

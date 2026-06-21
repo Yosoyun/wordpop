@@ -88,6 +88,11 @@ const App = (function () {
       if (done < cl.length) { currentLetter = L.letter; break; }
     }
     const nodes = LETTERS.map((L, i) => letterNode(L, i, currentLetter)).join("");
+    const activeToday = !!s.activeDays[Store.todayKey()];
+    const st = Store.stats();
+    const goalLine = activeToday
+      ? `✅ Today's goal done! 🔥 ${st.streak}-day streak — keep it going!`
+      : (st.streak > 0 ? `🔥 ${st.streak}-day streak! Do one lesson today to keep it.` : `Do one lesson a day to build a 🔥 streak!`);
     render(`
     <div class="screen home">
       <div class="bubbles-bg">${bubbleField()}</div>
@@ -99,8 +104,11 @@ const App = (function () {
           <p class="home-sub">Pop the bubbles to learn beautiful words!</p>
         </div>
       </div>
+      <div class="goal-line ${activeToday ? "met" : ""}">${goalLine}</div>
+      ${reviewCardHtml()}
       <div class="path">${nodes}</div>
       <div class="home-foot">
+        <button class="btn btn-soft" data-go="trophies">🏆 My Awards</button>
         ${s.premium ? `<span class="premium-tag">👑 Premium unlocked</span>` : `<button class="btn btn-soft go-premium" data-action="go-premium">✨ Unlock all 26 letters</button>`}
         <button class="btn btn-ghost" data-go="parent">👤 Parent Zone</button>
       </div>
@@ -163,6 +171,158 @@ const App = (function () {
     const clusters = groups.map((g, idx) => ({ kind: "lesson", words: g, title: "Lesson " + (idx + 1) }));
     if (ordered.length > size) clusters.push({ kind: "review", words: ordered.slice(0, 12), title: "Big Review 🏆" });
     return clusters;
+  }
+
+  /* ============================================================
+     RETENTION: cumulative review + streaks + awards
+     ============================================================ */
+
+  // achievements (awarded once, celebrated when newly earned)
+  const BADGES = [
+    { id: "firstWord",    icon: "🌱", name: "First Word",     desc: "Learn your very first word", test: (st) => st.attempted >= 1 },
+    { id: "tenWords",     icon: "⭐", name: "Word Star",       desc: "Master 10 words",            test: (st) => st.mastered >= 10 },
+    { id: "fiftyWords",   icon: "💫", name: "Word Wizard",     desc: "Master 50 words",            test: (st) => st.mastered >= 50 },
+    { id: "hundredWords", icon: "💯", name: "Word Hero",       desc: "Master 100 words",           test: (st) => st.mastered >= 100 },
+    { id: "firstLetter",  icon: "🏅", name: "Letter Finisher", desc: "Finish a whole letter",      test: (st, x) => x.lettersDone >= 1 },
+    { id: "threeLetters", icon: "🎖️", name: "Alphabet Star",   desc: "Finish 3 letters",           test: (st, x) => x.lettersDone >= 3 },
+    { id: "streak3",      icon: "🔥", name: "On Fire",         desc: "Keep a 3-day streak",        test: (st) => st.streak >= 3 },
+    { id: "streak7",      icon: "🏆", name: "Week Warrior",    desc: "Keep a 7-day streak",        test: (st) => st.streak >= 7 },
+    { id: "firstReview",  icon: "🔁", name: "Memory Keeper",   desc: "Do your first review",       test: (st, x) => x.reviews >= 1 },
+    { id: "reviewer",     icon: "🧠", name: "Brain Booster",   desc: "Do 10 reviews",              test: (st, x) => x.reviews >= 10 },
+    { id: "sharp",        icon: "🎯", name: "Sharp Shooter",   desc: "Reach 90% accuracy",         test: (st) => st.accuracy >= 90 && (st.totalCorrect + st.totalWrong) >= 20 }
+  ];
+
+  function wordIndex() {
+    if (wordIndex._c) return wordIndex._c;
+    const m = {};
+    LETTERS.forEach(L => L.words.forEach(w => { m[w.word.toLowerCase()] = w; }));
+    wordIndex._c = m; return m;
+  }
+
+  // letters whose lesson clusters are all completed
+  function completedLetters() {
+    const s = Store.get();
+    return LETTERS.filter(L => {
+      if (!L.words.length) return false;
+      if (!(CONFIG.freeLetters.includes(L.letter) || s.premium)) return false;
+      const cl = clustersFor(L).filter(c => c.kind !== "review");
+      return cl.length > 0 && cl.every((c, i) => (s.lessons[L.letter + ":" + i] || {}).completed);
+    }).map(L => L.letter);
+  }
+
+  // every word she has already met
+  function reviewPool() {
+    const s = Store.get(), idx = wordIndex(), pool = [];
+    Object.keys(s.words).forEach(k => { if (idx[k]) pool.push(idx[k]); });
+    return pool;
+  }
+
+  // a review set weighted toward weak / not-yet-mastered words
+  function weightedReview(n) {
+    const s = Store.get(), idx = wordIndex(), weak = [], ok = [];
+    Object.keys(s.words).forEach(k => {
+      const w = idx[k]; if (!w) return;
+      const st = s.words[k];
+      (st.wrong > 0 || !st.mastered) ? weak.push(w) : ok.push(w);
+    });
+    const pick = [], wk = Quiz.shuffle(weak), okk = Quiz.shuffle(ok);
+    while (pick.length < n && wk.length) pick.push(wk.shift());
+    while (pick.length < n && okk.length) pick.push(okk.shift());
+    return pick;
+  }
+
+  function checkBadges() {
+    const st = Store.stats();
+    const extra = { lettersDone: completedLetters().length, reviews: (Store.get().reviews || {}).total || 0 };
+    const newly = [];
+    BADGES.forEach(b => { if (b.test(st, extra) && Store.awardBadge(b.id)) newly.push(b); });
+    if (newly.length) Audio.sparkle();
+    return newly;
+  }
+  function badgesHtml(newly) {
+    if (!newly || !newly.length) return "";
+    return `<div class="new-badges"><p>New award${newly.length > 1 ? "s" : ""} unlocked! 🎖️</p><div class="badge-pop-row">` +
+      newly.map(b => `<div class="badge-pop"><span class="badge-ic">${b.icon}</span><b>${esc(b.name)}</b></div>`).join("") +
+      `</div></div>`;
+  }
+
+  function reviewCardHtml() {
+    const pool = reviewPool();
+    if (pool.length < 6) return "";
+    const lettersIn = Array.from(new Set(pool.map(w => w.word[0].toUpperCase()))).sort().join(", ");
+    const done = Store.reviewedToday();
+    return `
+      <div class="review-card ${done ? "done" : ""}">
+        <div class="review-ic">🔁</div>
+        <div class="review-body">
+          <b>${done ? "Review done today! 🎉" : "Daily Review"}</b>
+          <small>${done ? "Come back tomorrow to keep it strong" : "Lock in " + esc(lettersIn) + " — keep your words!"}</small>
+        </div>
+        <button class="btn ${done ? "btn-soft" : "btn-primary"}" data-action="start-review">${done ? "Again" : "Start"}</button>
+      </div>`;
+  }
+
+  function startReview() {
+    const sample = weightedReview(10);
+    if (sample.length < 4) { toast("Learn a few more words first! 🌱"); return; }
+    Store.touchDay(); startTimer();
+    const pool = reviewPool();
+    session = {
+      id: "review", letter: "★", color: "#8A4FFF", allWords: pool,
+      cluster: { kind: "review-mix", words: sample },
+      questions: Quiz.build(sample, pool),
+      qIndex: 0, wrongCount: 0, correctFirstTry: 0, answeredCount: 0, isReview: true
+    };
+    Audio.pop();
+    renderQuestion();
+  }
+
+  function finishReview() {
+    flushTime(); Audio.fanfare(); burstConfetti(130);
+    Store.recordReview();
+    const earnedXp = session.correctFirstTry * 10;
+    Store.addGems(5);
+    const newBadges = checkBadges();
+    const name = Store.get().learnerName || "superstar";
+    render(`
+    <div class="screen complete" style="--c:#8A4FFF">
+      <div class="bubbles-bg">${bubbleField()}</div>
+      <div class="complete-card pop-in">
+        ${mascot("celebrate", 120)}
+        <h1>Review complete! 🔁</h1>
+        <p class="review-done-msg">You kept your words strong, ${esc(name)}! 💪</p>
+        <div class="reward-row">
+          <div class="reward"><span>⚡</span><b>+${earnedXp}</b><small>XP</small></div>
+          <div class="reward"><span>💎</span><b>+5</b><small>gems</small></div>
+          <div class="reward"><span>🔥</span><b>${Store.stats().streak}</b><small>streak</small></div>
+        </div>
+        ${badgesHtml(newBadges)}
+        <button class="btn btn-primary btn-big" data-action="finish-back">Keep it up! ✨</button>
+      </div>
+    </div>`);
+  }
+
+  /* ---- awards / trophies screen ---- */
+  function screenTrophies() {
+    flushTime();
+    const s = Store.get();
+    const earnedCount = BADGES.filter(b => s.badges[b.id]).length;
+    const items = BADGES.map(b => {
+      const earned = !!s.badges[b.id];
+      return `<div class="trophy ${earned ? "earned" : "locked"}">
+        <span class="trophy-ic">${earned ? b.icon : "🔒"}</span>
+        <b>${esc(b.name)}</b><small>${esc(b.desc)}</small>
+      </div>`;
+    }).join("");
+    render(`
+    <div class="screen trophies-screen">
+      <div class="parent-head">
+        <button class="btn-back" data-go="home">←</button>
+        <h2>🏆 My Awards</h2>
+        <span class="learner-tag">${earnedCount}/${BADGES.length}</span>
+      </div>
+      <div class="trophy-grid">${items}</div>
+    </div>`);
   }
 
   /* ---- letter map: mini-lessons within a letter ---- */
@@ -561,6 +721,7 @@ const App = (function () {
   }
 
   function finishLesson() {
+    if (session.isReview) return finishReview();
     flushTime();
     Audio.fanfare();
     burstConfetti(120);
@@ -569,28 +730,26 @@ const App = (function () {
     Store.completeLesson(session.id, stars);
     const earnedXp = session.correctFirstTry * 10;
     Store.addGems(stars * 2);
+    const letterDone = completedLetters().includes(session.letter);
+    const newBadges = checkBadges();
+    const canReview = weightedReview(4).length >= 4;
     const starHtml = [1, 2, 3].map(n => `<span class="big-star ${stars >= n ? "on" : ""}" style="animation-delay:${n * .15}s">★</span>`).join("");
     render(`
     <div class="screen complete" style="--c:${session.color}">
       <div class="bubbles-bg">${bubbleField()}</div>
       <div class="complete-card pop-in">
         ${mascot("celebrate", 120)}
-        <h1>Lesson complete!</h1>
+        <h1>${letterDone ? "Letter " + session.letter + " complete! 🎉" : "Lesson complete!"}</h1>
         <div class="big-stars">${starHtml}</div>
         <div class="reward-row">
           <div class="reward"><span>⚡</span><b>+${earnedXp}</b><small>XP</small></div>
           <div class="reward"><span>💎</span><b>+${stars * 2}</b><small>gems</small></div>
-          <div class="reward"><span>🎯</span><b>${session.correctFirstTry}</b><small>first try</small></div>
+          <div class="reward"><span>🔥</span><b>${Store.stats().streak}</b><small>streak</small></div>
         </div>
-        <div class="rate">
-          <p>How was this lesson?</p>
-          <div class="rate-faces">
-            <button data-rate="3">😄</button>
-            <button data-rate="2">🙂</button>
-            <button data-rate="1">😕</button>
-          </div>
-        </div>
-        <button class="btn btn-primary btn-big" data-action="finish-back">Keep learning! ✨</button>
+        ${badgesHtml(newBadges)}
+        ${letterDone ? `<p class="lock-in-msg">Now lock letter ${session.letter} into memory! 🔁</p>` : ""}
+        ${canReview ? `<button class="btn btn-success btn-big" data-action="start-review">🔁 Review &amp; remember</button>` : ""}
+        <button class="btn ${canReview ? "btn-ghost" : "btn-primary btn-big"}" data-action="finish-back">Keep learning! ✨</button>
       </div>
     </div>`);
   }
@@ -814,6 +973,7 @@ const App = (function () {
         });
         break;
       }
+      case "start-review": startReview(); break;
       case "go-premium": Audio.tap(); screenPremium(); break;
       case "unlock-premium": Store.setPremium(true); Audio.fanfare(); burstConfetti(90); toast("🎉 Premium unlocked — all 26 letters are open!"); screenHome(); break;
       case "voice-female": Store.setSetting("voiceGender", "female"); Audio.setGender("female"); Audio.say("Hello! Let's learn!"); screenParent(); break;
@@ -898,6 +1058,7 @@ const App = (function () {
     if (name === "parent") return screenParentGate();
     if (name === "premium") return screenPremium();
     if (name === "about") return screenAbout();
+    if (name === "trophies") return screenTrophies();
     screenHome();
   }
 

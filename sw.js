@@ -5,20 +5,20 @@
    step with the ?v=… in index.html).
    ============================================================ */
 
-const VERSION = "wordpop-v0.8";
+const VERSION = "wordpop-v0.9";
 const ASSETS = [
   "./",
   "./index.html",
-  "./css/styles.css?v=0.8",
-  "./js/words-b-f.js?v=0.8",
-  "./js/words-g-k.js?v=0.8",
-  "./js/data.js?v=0.8",
-  "./js/art.js?v=0.8",
-  "./js/themes.js?v=0.8",
-  "./js/audio.js?v=0.8",
-  "./js/store.js?v=0.8",
-  "./js/quiz.js?v=0.8",
-  "./js/app.js?v=0.8",
+  "./css/styles.css?v=0.9",
+  "./js/words-b-f.js?v=0.9",
+  "./js/words-g-k.js?v=0.9",
+  "./js/data.js?v=0.9",
+  "./js/art.js?v=0.9",
+  "./js/themes.js?v=0.9",
+  "./js/audio.js?v=0.9",
+  "./js/store.js?v=0.9",
+  "./js/quiz.js?v=0.9",
+  "./js/app.js?v=0.9",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
   "./assets/apple-touch-icon.png",

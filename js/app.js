@@ -101,6 +101,7 @@ const App = (function () {
       </div>
       <div class="path">${nodes}</div>
       <div class="home-foot">
+        ${s.premium ? `<span class="premium-tag">👑 Premium unlocked</span>` : `<button class="btn btn-soft go-premium" data-action="go-premium">✨ Unlock all 26 letters</button>`}
         <button class="btn btn-ghost" data-go="parent">👤 Parent Zone</button>
       </div>
     </div>`);
@@ -137,13 +138,30 @@ const App = (function () {
       </div>`;
   }
 
+  /* deterministic per-child shuffle so every child rotates through ALL the
+     words (not the same alphabetical 25), but the order stays stable for her
+     so progress/stars keep their meaning. */
+  function seededShuffle(arr, seed) {
+    let t = seed >>> 0;
+    const rnd = () => { t += 0x6D2B79F5; let x = Math.imul(t ^ (t >>> 15), 1 | t); x ^= x + Math.imul(x ^ (x >>> 7), 61 | x); return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function letterSeed(letter) {
+    let h = (Store.get().createdAt || 1) % 1000000;
+    for (let i = 0; i < letter.length; i++) h = (h * 31 + letter.charCodeAt(i)) >>> 0;
+    return h;
+  }
+
   /* break a letter's words into clusters (mini-lessons) + a review */
   function clustersFor(L) {
     const size = CONFIG.wordsPerCluster;
+    const ordered = seededShuffle(L.words, letterSeed(L.letter));
     const groups = [];
-    for (let i = 0; i < L.words.length; i += size) groups.push(L.words.slice(i, i + size));
-    const clusters = groups.map((g, idx) => ({ kind: "lesson", words: g, title: "Words " + (idx * size + 1) + "–" + (idx * size + g.length) }));
-    if (L.words.length > size) clusters.push({ kind: "review", words: L.words, title: "Big Review 🏆" });
+    for (let i = 0; i < ordered.length; i += size) groups.push(ordered.slice(i, i + size));
+    const clusters = groups.map((g, idx) => ({ kind: "lesson", words: g, title: "Lesson " + (idx + 1) }));
+    if (ordered.length > size) clusters.push({ kind: "review", words: ordered.slice(0, 12), title: "Big Review 🏆" });
     return clusters;
   }
 
@@ -207,8 +225,8 @@ const App = (function () {
     };
 
     if (cluster.kind === "review") {
-      // review jumps straight into a longer quiz over all words
-      session.questions = Quiz.build(L.words, L.words);
+      // review = a mixed quiz over a sample of the letter's words
+      session.questions = Quiz.build(cluster.words, L.words);
       renderQuestion();
     } else {
       renderFlashcard();
@@ -706,7 +724,10 @@ const App = (function () {
         </div>
       </section>
 
-      <p class="parent-foot">All data stays on this device. Nothing is uploaded. 💜</p>
+      <div class="parent-extra">
+        <button class="btn btn-soft" data-go="about">ℹ️ About &amp; Help</button>
+      </div>
+      <p class="parent-foot">${esc(CONFIG.appName)} v${esc(CONFIG.version)} · All data stays on this device. Nothing is uploaded. 💜</p>
     </div>`);
   }
 
@@ -736,7 +757,7 @@ const App = (function () {
       if (t.dataset.go) { Audio.tap(); return route(t.dataset.go); }
 
       if (t.dataset.letter) {
-        if (t.dataset.locked) { Audio.wrong(); return lockedToast(t.dataset.letter); }
+        if (t.dataset.locked) { Audio.tap(); return openLockedLetter(t.dataset.letter); }
         Audio.pop(); return screenLetter(t.dataset.letter);
       }
 
@@ -793,6 +814,8 @@ const App = (function () {
         });
         break;
       }
+      case "go-premium": Audio.tap(); screenPremium(); break;
+      case "unlock-premium": Store.setPremium(true); Audio.fanfare(); burstConfetti(90); toast("🎉 Premium unlocked — all 26 letters are open!"); screenHome(); break;
       case "voice-female": Store.setSetting("voiceGender", "female"); Audio.setGender("female"); Audio.say("Hello! Let's learn!"); screenParent(); break;
       case "voice-male": Store.setSetting("voiceGender", "male"); Audio.setGender("male"); Audio.say("Hello! Let's learn!"); screenParent(); break;
       case "flash-next": flashNext(); break;
@@ -814,10 +837,55 @@ const App = (function () {
   }
 
   function confirmLeave() { return confirm("Leave this lesson? Your progress in it won't be saved."); }
-  function lockedToast(letter) {
+  function openLockedLetter(letter) {
     const L = LETTERS.find(x => x.letter === letter);
-    if (L && L.status === "coming-soon") toast("Letter " + letter + " is coming very soon! 🛠️");
-    else toast("Letter " + letter + " is a ⭐ Premium letter. Unlock it in the Parent Zone!");
+    if (!L || !L.words.length) { toast("Letter " + letter + " is coming very soon! 🛠️"); return; }
+    screenPremium(letter);
+  }
+
+  /* ---- professional Premium upgrade screen ---- */
+  function screenPremium(letter) {
+    flushTime();
+    const L = letter ? LETTERS.find(x => x.letter === letter) : null;
+    const totalWords = LETTERS.reduce((s, x) => s + x.words.length, 0);
+    render(`
+    <div class="screen premium-screen">
+      <div class="bubbles-bg">${bubbleField()}</div>
+      <div class="premium-card pop-in">
+        <button class="btn-back" data-go="home">←</button>
+        <div class="premium-crown">👑</div>
+        <h1 class="logo">${esc(CONFIG.appName)} Premium</h1>
+        <p class="tagline">Unlock the whole adventure ✨</p>
+        ${L ? `<div class="premium-letter" style="--c:${L.color}">${letter}</div><p class="premium-sub">“${esc(L.theme)}” is a Premium letter.</p>` : ""}
+        <ul class="premium-benefits">
+          <li><span>🔤</span><div><b>All 26 letters</b><small>${totalWords >= 100 ? totalWords.toLocaleString() + "+" : "thousands of"} beautiful words</small></div></li>
+          <li><span>🎮</span><div><b>Every game</b><small>match, spelling, pictures &amp; say-it-out-loud</small></div></li>
+          <li><span>📊</span><div><b>Full parent analytics</b><small>progress, errors &amp; what to practise</small></div></li>
+          <li><span>🏆</span><div><b>Both worlds</b><small>Sparkle &amp; Super-Hero, your child's choice</small></div></li>
+          <li><span>📴</span><div><b>Works fully offline</b><small>no ads, no tracking, ever</small></div></li>
+        </ul>
+        <button class="btn btn-primary btn-big" data-action="unlock-premium">⭐ Unlock Premium</button>
+        <p class="premium-free-note">The free version includes letters <b>${CONFIG.freeLetters.join(", ")}</b> — plenty to begin!</p>
+      </div>
+    </div>`);
+  }
+
+  /* ---- About / Help (professional info for parents) ---- */
+  function screenAbout() {
+    flushTime();
+    render(`
+    <div class="screen about-screen">
+      <div class="about-card pop-in">
+        <button class="btn-back" data-go="parent">←</button>
+        <div class="about-hero">${mascot("happy", 84)}</div>
+        <h1 class="logo">${esc(CONFIG.appName)}</h1>
+        <p class="tagline">${esc(CONFIG.tagline)}</p>
+        <div class="about-sec"><h3>📖 How it works</h3><p>Each word is taught with a picture, audio, a simple meaning, synonyms and opposites — then practised through games, spelling and saying it out loud. Wrong answers come back until they're fixed, so children build real understanding, step by step.</p></div>
+        <div class="about-sec"><h3>👤 For parents</h3><p>Open the Parent Zone (PIN ${esc(CONFIG.parentPinDefault)}) any time to see accuracy, time spent, words mastered, daily streaks, and exactly which words need more practice.</p></div>
+        <div class="about-sec"><h3>💜 Privacy</h3><p>Everything stays on this device. No accounts, no ads, no tracking — nothing is uploaded.</p></div>
+        <p class="about-version">${esc(CONFIG.appName)} · version ${esc(CONFIG.version)}</p>
+      </div>
+    </div>`);
   }
 
   function route(name) {
@@ -828,6 +896,8 @@ const App = (function () {
       return screenHome();
     }
     if (name === "parent") return screenParentGate();
+    if (name === "premium") return screenPremium();
+    if (name === "about") return screenAbout();
     screenHome();
   }
 

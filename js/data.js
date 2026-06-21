@@ -23,7 +23,8 @@ const CONFIG = {
   appName: "WordPop",                       // ← change the app name here
   tagline: "Pop a bubble, learn a beautiful word!",
   mascotName: "Pip",                        // ← the friendly mascot's name
-  freeLetters: ["A", "B"],                  // letters playable for free
+  version: "1.0",
+  freeLetters: ["A", "B", "C"],             // letters playable for free (the rest are Premium)
   parentPinDefault: "0000",                 // default Parent Zone PIN (changeable in-app)
   wordsPerCluster: 5                        // how many words per mini-lesson
 };
